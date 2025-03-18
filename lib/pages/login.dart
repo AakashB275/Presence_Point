@@ -62,14 +62,14 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          "DavaBuddy",
+          "PresencePoint",
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
         centerTitle: true,
-        backgroundColor: Color.fromRGBO(33, 162, 131, 1),
+        backgroundColor: Colors.amber,
       ),
       body: SingleChildScrollView(
         child: Container(
@@ -145,7 +145,7 @@ class _LoginPageState extends State<LoginPage> {
               ElevatedButton(
                 onPressed: _login,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Color.fromRGBO(33, 162, 131, 1),
+                  backgroundColor: Colors.amber,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(15),
                   ),
