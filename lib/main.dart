@@ -6,6 +6,7 @@ import './pages/analytics_page.dart';
 import './pages/home_page.dart';
 import './pages/register.dart';
 import './pages/profile.dart';
+import './pages/geofencing-implementation.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,7 +23,7 @@ Future<void> main() async {
     routes: {
       '/': (context) => Wrapper(),
       '/login': (context) => LoginPage(),
-      '/home': (context) => HomePage(),
+      '/home': (context) => GeofencingMapScreen(),
       '/register': (context) => RegisterScreen(),
       '/profile': (context) => Profile(),
       '/analytics': (context) => AnalyticsPage(),
