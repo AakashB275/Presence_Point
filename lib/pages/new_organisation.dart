@@ -14,35 +14,46 @@ class _NewOrganisationState extends State<NewOrganisation> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
-          title: Text("New Organisation"),
-          centerTitle: true,
-          backgroundColor: Colors.amber,
-        ),
-        body: SingleChildScrollView(
-          child: Container(
-            color: Colors.white,
-            child: Column(children: [
-              SizedBox(height: 30),
-              Text(
-                "Create an Organisation",
-                style: TextStyle(
-                  fontSize: 40,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.black,
-                ),
+      appBar: AppBar(
+        backgroundColor: Colors.amber,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(height: 50),
+            Text("Create Organization", style: TextStyle(fontSize: 16)),
+            SizedBox(height: 8),
+            TextField(
+              decoration: InputDecoration(
+                hintText: "Select Organization",
+                border: OutlineInputBorder(),
               ),
-              SizedBox(height: 30),
-              Text(
-                "Join an Organisation",
-                style: TextStyle(
-                  fontSize: 40,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.black,
-                ),
-              )
-            ]),
-          ),
-        ));
+            ),
+            SizedBox(height: 20),
+            Text("Join Organisation", style: TextStyle(fontSize: 16)),
+            SizedBox(height: 8),
+            TextField(
+              decoration: InputDecoration(
+                hintText: "Organisation Code",
+                border: OutlineInputBorder(),
+              ),
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pushReplacementNamed(context, "/home");
+              },
+              style: ElevatedButton.styleFrom(
+                minimumSize: Size(double.infinity, 50),
+                backgroundColor: Colors.amber,
+              ),
+              child: Text("Create Organization"),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

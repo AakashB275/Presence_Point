@@ -20,7 +20,6 @@ class _OrganisationDetailsState extends State<OrganisationDetails> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Organisation Details"),
         centerTitle: true,
         backgroundColor: Colors.amber,
       ),

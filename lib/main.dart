@@ -21,7 +21,7 @@ Future<void> main() async {
     debugShowCheckedModeBanner: false,
     initialRoute: '/',
     routes: {
-      '/': (context) => OrganisationDetails(),
+      '/': (context) => NewOrganisation(),
       '/login': (context) => LoginPage(),
       '/home': (context) => GeofencingMapScreen(),
       '/register': (context) => RegisterScreen(),
