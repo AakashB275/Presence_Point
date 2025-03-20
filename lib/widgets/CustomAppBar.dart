@@ -4,8 +4,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final GlobalKey<ScaffoldState> scaffoldKey; // ✅ Ensure this key is required
 
-  const CustomAppBar({Key? key, required this.title, required this.scaffoldKey})
-      : super(key: key);
+  const CustomAppBar(
+      {super.key, required this.title, required this.scaffoldKey});
 
   @override
   Widget build(BuildContext context) {

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import './wrapper.dart';
 import './pages/login.dart';
 import './pages/analytics_page.dart';
-import './pages/home_page.dart';
 import './pages/register.dart';
 import './pages/profile.dart';
 import './pages/geofencing-implementation.dart';
+import 'pages/new_organisation.dart';
+import './pages/organisation_details.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,12 +21,14 @@ Future<void> main() async {
     debugShowCheckedModeBanner: false,
     initialRoute: '/',
     routes: {
-      '/': (context) => Wrapper(),
+      '/': (context) => OrganisationDetails(),
       '/login': (context) => LoginPage(),
       '/home': (context) => GeofencingMapScreen(),
       '/register': (context) => RegisterScreen(),
       '/profile': (context) => Profile(),
       '/analytics': (context) => AnalyticsPage(),
+      '/neworganisation': (context) => NewOrganisation(),
+      '/organisationdetails': (context) => OrganisationDetails(),
     },
   ));
 }

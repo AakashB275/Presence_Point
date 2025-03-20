@@ -1,0 +1,2 @@
+C:/Users/shree/Desktop/Presence_Point_2/android/app/.cxx/Debug/3j56u3bl/x86/CMakeFiles/edit_cache.dir
+C:/Users/shree/Desktop/Presence_Point_2/android/app/.cxx/Debug/3j56u3bl/x86/CMakeFiles/rebuild_cache.dir

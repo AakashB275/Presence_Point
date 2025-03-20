@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:presence_point_2/pages/home_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:supabase/supabase.dart';
 import 'package:presence_point_2/pages/login.dart';
 import 'package:presence_point_2/pages/register.dart';
 

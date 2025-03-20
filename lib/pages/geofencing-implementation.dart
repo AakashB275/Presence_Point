@@ -7,7 +7,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 class GeofencingMapScreen extends StatefulWidget {
-  const GeofencingMapScreen({Key? key}) : super(key: key);
+  const GeofencingMapScreen({super.key});
 
   @override
   State<GeofencingMapScreen> createState() => _GeofencingMapScreenState();
@@ -16,17 +16,22 @@ class GeofencingMapScreen extends StatefulWidget {
 class _GeofencingMapScreenState extends State<GeofencingMapScreen> {
   final String goMapsApiKey = 'YOUR_GO_MAPS_API_KEY';
   final MapController mapController = MapController();
-  
+
   // Current user position
   LatLng? currentPosition;
-  
+
   // Geofence parameters
   final List<LatLng> geofencePoints = [];
   double geofenceRadius = 200.0; // radius in meters
   bool isInsideGeofence = false;
-  
+  bool isGeofenceActive = false;
+
   // Streaming position updates
   StreamSubscription<Position>? positionStream;
+
+  // Controller for radius input
+  final TextEditingController radiusController =
+      TextEditingController(text: '200.0');
 
   @override
   void initState() {
@@ -39,6 +44,7 @@ class _GeofencingMapScreenState extends State<GeofencingMapScreen> {
   @override
   void dispose() {
     positionStream?.cancel();
+    radiusController.dispose();
     super.dispose();
   }
 
@@ -52,11 +58,12 @@ class _GeofencingMapScreenState extends State<GeofencingMapScreen> {
         );
       }
     }
-    
+
     if (permission == LocationPermission.deniedForever) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Location permissions are permanently denied, we cannot request permissions.'),
+          content: Text(
+              'Location permissions are permanently denied, we cannot request permissions.'),
         ),
       );
     }
@@ -67,14 +74,14 @@ class _GeofencingMapScreenState extends State<GeofencingMapScreen> {
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
-      
+
       setState(() {
         currentPosition = LatLng(position.latitude, position.longitude);
       });
-      
+
       // Center map on current position
       mapController.move(currentPosition!, 15.0);
-      
+
       // Check if user is inside geofence
       _checkGeofence();
     } catch (e) {
@@ -92,77 +99,110 @@ class _GeofencingMapScreenState extends State<GeofencingMapScreen> {
       setState(() {
         currentPosition = LatLng(position.latitude, position.longitude);
       });
-      
+
       // Check if user is inside geofence
       _checkGeofence();
     });
   }
 
   void _addGeofencePoint(LatLng point) {
+    // For simplicity, we'll just allow a single point for circular geofence
     setState(() {
+      geofencePoints.clear(); // Clear existing points
       geofencePoints.add(point);
+      isGeofenceActive = true;
     });
-    _checkGeofence();
+
+    // Show a confirmation dialog for the radius
+    _showRadiusDialog();
+  }
+
+  void _showRadiusDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Set Geofence Radius'),
+          content: TextField(
+            controller: radiusController,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Radius (meters)',
+              hintText: 'Enter radius in meters',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  geofenceRadius = double.parse(radiusController.text);
+                });
+                _checkGeofence();
+                Navigator.of(context).pop();
+              },
+              child: const Text('Set'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _clearGeofence() {
     setState(() {
       geofencePoints.clear();
       isInsideGeofence = false;
+      isGeofenceActive = false;
     });
   }
 
   void _checkGeofence() {
-    if (currentPosition == null || geofencePoints.isEmpty) return;
-    
+    if (currentPosition == null || geofencePoints.isEmpty) {
+      setState(() {
+        isInsideGeofence = false;
+        isGeofenceActive = false;
+      });
+      return;
+    }
+
     // For a circular geofence around a single point
-    if (geofencePoints.length == 1) {
-      double distance = Geolocator.distanceBetween(
-        currentPosition!.latitude,
-        currentPosition!.longitude,
-        geofencePoints[0].latitude,
-        geofencePoints[0].longitude,
-      );
-      
-      setState(() {
-        isInsideGeofence = distance <= geofenceRadius;
-      });
-      
-      if (isInsideGeofence) {
-        _onEnterGeofence();
-      } else {
-        _onExitGeofence();
-      }
-    } 
-    // For a polygon geofence with multiple points
-    else if (geofencePoints.length > 2) {
-      // Here you would use a polygon containment algorithm
-      // For simplicity, we'll just check against the first point as circular
-      double distance = Geolocator.distanceBetween(
-        currentPosition!.latitude,
-        currentPosition!.longitude,
-        geofencePoints[0].latitude,
-        geofencePoints[0].longitude,
-      );
-      
-      setState(() {
-        isInsideGeofence = distance <= geofenceRadius;
-      });
-      
-      if (isInsideGeofence) {
-        _onEnterGeofence();
-      } else {
-        _onExitGeofence();
-      }
+    double distance = Geolocator.distanceBetween(
+      currentPosition!.latitude,
+      currentPosition!.longitude,
+      geofencePoints[0].latitude,
+      geofencePoints[0].longitude,
+    );
+
+    bool wasInside = isInsideGeofence;
+
+    setState(() {
+      isInsideGeofence = distance <= geofenceRadius;
+      isGeofenceActive = true;
+    });
+
+    // Only trigger events if the status has changed
+    if (isInsideGeofence && !wasInside) {
+      _onEnterGeofence();
+    } else if (!isInsideGeofence && wasInside) {
+      _onExitGeofence();
     }
   }
 
   void _onEnterGeofence() {
     // Handle enter geofence event
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Entered geofence area!')),
+      const SnackBar(
+        content: Text('Entered geofence area!'),
+        backgroundColor: Colors.green,
+      ),
     );
-    
+
     // You can call Go Maps API here to log the entry
     _logGeofenceEvent('enter');
   }
@@ -170,9 +210,12 @@ class _GeofencingMapScreenState extends State<GeofencingMapScreen> {
   void _onExitGeofence() {
     // Handle exit geofence event
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Exited geofence area!')),
+      const SnackBar(
+        content: Text('Exited geofence area!'),
+        backgroundColor: Colors.red,
+      ),
     );
-    
+
     // You can call Go Maps API here to log the exit
     _logGeofenceEvent('exit');
   }
@@ -193,7 +236,7 @@ class _GeofencingMapScreenState extends State<GeofencingMapScreen> {
           'user_id': 'user_123', // Replace with actual user ID
         }),
       );
-      
+
       if (response.statusCode == 200) {
         print('Successfully logged geofence $eventType event');
       } else {
@@ -211,6 +254,18 @@ class _GeofencingMapScreenState extends State<GeofencingMapScreen> {
         title: const Text('Geofencing Demo'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: () {
+              if (geofencePoints.isNotEmpty) {
+                _showRadiusDialog();
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Add a geofence point first')),
+                );
+              }
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.delete),
             onPressed: _clearGeofence,
           ),
@@ -218,76 +273,83 @@ class _GeofencingMapScreenState extends State<GeofencingMapScreen> {
       ),
       body: currentPosition == null
           ? const Center(child: CircularProgressIndicator())
-          : FlutterMap(
-              mapController: mapController,
-              options: MapOptions(
-                center: currentPosition!,
-                zoom: 15.0,
-                onTap: (_, point) => _addGeofencePoint(point),
-              ),
+          : Column(
               children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.example.app',
-                ),
-                // Draw geofence points
-                MarkerLayer(
-                  markers: [
-                    // Current position marker
-                    Marker(
-                      point: currentPosition!,
-                      width: 80,
-                      height: 80,
-                      builder: (context) => Container(
-                        child: Icon(
-                          Icons.location_on,
-                          color: Colors.blue,
-                          size: 40,
-                        ),
-                      ),
+                Expanded(
+                  child: FlutterMap(
+                    mapController: mapController,
+                    options: MapOptions(
+                      center: currentPosition!,
+                      zoom: 15.0,
+                      onTap: (_, point) => _addGeofencePoint(point),
                     ),
-                    // Geofence points markers
-                    ...geofencePoints.map(
-                      (point) => Marker(
-                        point: point,
-                        width: 80,
-                        height: 80,
-                        builder: (context) => Container(
-                          child: Icon(
-                            Icons.circle,
-                            color: Colors.red,
-                            size: 20,
+                    children: [
+                      TileLayer(
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.example.app',
+                      ),
+                      // Draw geofence points
+                      MarkerLayer(
+                        markers: [
+                          // Current position marker
+                          Marker(
+                            point: currentPosition!,
+                            width: 80,
+                            height: 80,
+                            builder: (context) => Container(
+                              child: Icon(
+                                Icons.location_on,
+                                color: isInsideGeofence
+                                    ? Colors.green
+                                    : Colors.blue,
+                                size: 40,
+                              ),
+                            ),
                           ),
+                          // Geofence points markers
+                          ...geofencePoints.map(
+                            (point) => Marker(
+                              point: point,
+                              width: 80,
+                              height: 80,
+                              builder: (context) => Container(
+                                child: Icon(
+                                  Icons.radio_button_checked,
+                                  color: Colors.red,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      // Draw geofence circle
+                      if (geofencePoints.isNotEmpty)
+                        CircleLayer(
+                          circles: [
+                            CircleMarker(
+                              point: geofencePoints.first,
+                              radius: geofenceRadius,
+                              color: Colors.red.withOpacity(0.3),
+                              borderColor: Colors.red,
+                              borderStrokeWidth: 2,
+                            ),
+                          ],
                         ),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                // Draw geofence circle
-                if (geofencePoints.isNotEmpty)
-                  CircleLayer(
-                    circles: [
-                      CircleMarker(
-                        point: geofencePoints.first,
-                        radius: geofenceRadius,
-                        color: Colors.red.withOpacity(0.3),
-                        borderColor: Colors.red,
-                        borderStrokeWidth: 2,
-                      ),
-                    ],
+                // Instructions panel
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  color: Colors.white,
+                  child: const Text(
+                    'Tap on the map to set a geofence location',
+                    style: TextStyle(fontSize: 16),
+                    textAlign: TextAlign.center,
                   ),
-                // Draw geofence polygon
-                if (geofencePoints.length > 2)
-                  PolygonLayer(
-                    polygons: [
-                      Polygon(
-                        points: geofencePoints,
-                        color: Colors.red.withOpacity(0.2),
-                        borderColor: Colors.red,
-                        borderStrokeWidth: 2,
-                      ),
-                    ],
-                  ),
+                ),
               ],
             ),
       floatingActionButton: FloatingActionButton(
@@ -296,11 +358,27 @@ class _GeofencingMapScreenState extends State<GeofencingMapScreen> {
       ),
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(16),
-        color: isInsideGeofence ? Colors.green : Colors.red,
-        child: Text(
-          isInsideGeofence ? 'Inside Geofence' : 'Outside Geofence',
-          style: const TextStyle(color: Colors.white, fontSize: 18),
-          textAlign: TextAlign.center,
+        color: !isGeofenceActive
+            ? Colors.grey
+            : (isInsideGeofence ? Colors.green : Colors.red),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              !isGeofenceActive
+                  ? Icons.location_off
+                  : (isInsideGeofence ? Icons.check_circle : Icons.cancel),
+              color: Colors.white,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              !isGeofenceActive
+                  ? 'No Active Geofence'
+                  : (isInsideGeofence ? 'Inside Geofence' : 'Outside Geofence'),
+              style: const TextStyle(color: Colors.white, fontSize: 18),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
     );
