@@ -34,7 +34,7 @@ class _WrapperState extends State<Wrapper> {
           }
           // If user is logged in, go to HomePage, otherwise show GetStarted screen
           final session = supabase.auth.currentSession;
-          return session != null ? const HomePage() : const GetStarted();
+          return session != null ? HomePage() : const GetStarted();
         },
       ),
     );

@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:presence_point_2/pages/get_started.dart';
+import 'package:presence_point_2/pages/home_page.dart';
+import 'package:presence_point_2/pages/leaves.dart';
+import 'package:presence_point_2/wrapper.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import './pages/login.dart';
 import './pages/analytics_page.dart';
@@ -21,14 +25,15 @@ Future<void> main() async {
     debugShowCheckedModeBanner: false,
     initialRoute: '/',
     routes: {
-      '/': (context) => NewOrganisation(),
+      '/': (context) => Wrapper(),
       '/login': (context) => LoginPage(),
-      '/home': (context) => GeofencingMapScreen(),
+      '/home': (context) => HomePage(),
       '/register': (context) => RegisterScreen(),
-      '/profile': (context) => Profile(),
+      '/profile': (context) => ProfileScreen(),
       '/analytics': (context) => AnalyticsPage(),
       '/neworganisation': (context) => NewOrganisation(),
       '/organisationdetails': (context) => OrganisationDetails(),
+      '/leave': (context) => LeavesScreen(),
     },
   ));
 }
