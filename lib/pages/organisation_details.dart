@@ -1,8 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import '../widgets/CustomAppBar.dart';
-import '../widgets/CustomDrawer.dart';
-import 'home_page.dart';
 
 class OrganisationDetails extends StatefulWidget {
   const OrganisationDetails({super.key});
@@ -68,7 +64,7 @@ class _OrganisationDetailsState extends State<OrganisationDetails> {
             SizedBox(height: 30),
             ElevatedButton(
               onPressed: () {
-                print("Set Location Button Clicked");
+                Navigator.pushReplacementNamed(context, '/geofencingscreen');
               },
               style: ElevatedButton.styleFrom(
                 minimumSize: Size(double.infinity, 50),

@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import '../widgets/CustomAppBar.dart';
-import '../widgets/CustomDrawer.dart';
 
 class NewOrganisation extends StatefulWidget {
   const NewOrganisation({super.key});
@@ -27,9 +24,20 @@ class _NewOrganisationState extends State<NewOrganisation> {
             SizedBox(height: 8),
             TextField(
               decoration: InputDecoration(
-                hintText: "Select Organization",
+                hintText: "Select Organization Type",
                 border: OutlineInputBorder(),
               ),
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pushReplacementNamed(context, "/organisationdetails");
+              },
+              style: ElevatedButton.styleFrom(
+                minimumSize: Size(double.infinity, 50),
+                backgroundColor: Colors.amber,
+              ),
+              child: Text("Create Organization"),
             ),
             SizedBox(height: 20),
             Text("Join Organisation", style: TextStyle(fontSize: 16)),
@@ -41,16 +49,6 @@ class _NewOrganisationState extends State<NewOrganisation> {
               ),
             ),
             SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pushReplacementNamed(context, "/home");
-              },
-              style: ElevatedButton.styleFrom(
-                minimumSize: Size(double.infinity, 50),
-                backgroundColor: Colors.amber,
-              ),
-              child: Text("Create Organization"),
-            ),
           ],
         ),
       ),

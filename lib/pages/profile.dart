@@ -1,162 +1,117 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:presence_point_2/widgets/CustomAppBar.dart';
+import 'package:presence_point_2/widgets/CustomDrawer.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-class Profile extends StatefulWidget {
-  const Profile({super.key});
-
+class ProfileScreen extends StatefulWidget {
   @override
-  _Profile createState() => _Profile();
+  _ProfileScreenState createState() => _ProfileScreenState();
 }
 
-class _Profile extends State<Profile> {
+class _ProfileScreenState extends State<ProfileScreen> {
+  bool _isLoading = true;
+  Map<String, dynamic>? _userProfile;
+  final supabase = Supabase.instance.client;
+  final GlobalKey<ScaffoldState> MyKey = GlobalKey<ScaffoldState>();
+
   @override
   void initState() {
     super.initState();
+    _loadUserProfile();
+  }
+
+  Future<void> _loadUserProfile() async {
+    try {
+      final userId = supabase.auth.currentUser!.id;
+      final response =
+          await supabase.from('users').select().eq('id', userId).single();
+
+      setState(() {
+        _userProfile = response;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: Text(
-          "Profile",
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        backgroundColor: Colors.amber,
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Profile Avatar
-            CircleAvatar(
-              radius: 55,
-              backgroundColor: Colors.white10,
-              child: CircleAvatar(
-                radius: 50,
-                backgroundImage: AssetImage("assets/atharv pic.jpg"),
-                backgroundColor: Colors.grey[700],
-              ),
-            ),
-            SizedBox(height: 12),
-            Text(
-              "User name",
-              style: TextStyle(
-                fontSize: 22,
-                color: Colors.black,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 20),
-            Container(
-              padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.amber,
-                borderRadius: BorderRadius.circular(15),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 5,
-                    offset: Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Profile Details",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Divider(color: Colors.grey[500], thickness: 1, endIndent: 20),
-                  Text(
-                    "Joined On: 12/05/2023",
-                    style: TextStyle(color: Colors.white70),
-                  ),
-                  Text(
-                    "Last Login: 12/05/2023",
-                    style: TextStyle(color: Colors.white70),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 20),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildMenuItem(Icons.category, "Categories"),
-                _buildMenuItem(Icons.person_add, "Invite Friends"),
-                _buildMenuItem(Icons.notifications, "Notifications"),
-                _buildMenuItem(Icons.delete, "Clear Transactions"),
-              ],
-            ),
-            SizedBox(height: 20),
-            Container(
-              width: double.infinity,
-              margin: EdgeInsets.only(top: 20),
-              decoration: BoxDecoration(
-                color: Colors.redAccent,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black38,
-                    blurRadius: 6,
-                    offset: Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: ElevatedButton(
-                onPressed: () {},
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  shadowColor: Colors.transparent,
-                  padding: EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+      appBar: CustomAppBar(title: "Presence Point", scaffoldKey: MyKey),
+      drawer: CustomDrawer(),
+      body: _isLoading
+          ? Center(child: CircularProgressIndicator())
+          : _userProfile == null
+              ? Center(child: Text('Error loading profile'))
+              : Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: CircleAvatar(
+                          radius: 60,
+                          child: Text(
+                            _userProfile!['name'].substring(0, 1).toUpperCase(),
+                            style: TextStyle(fontSize: 48),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 24),
+                      _buildProfileItem('Name', _userProfile!['name']),
+                      _buildProfileItem('Email', _userProfile!['email']),
+                      _buildProfileItem(
+                          'Role', _userProfile!['role'].toUpperCase()),
+                      _buildProfileItem(
+                          'Hourly Rate', '\$${_userProfile!['hourly_rate']}'),
+                      _buildProfileItem(
+                        'Member Since',
+                        DateFormat('MMM d, yyyy').format(
+                          DateTime.parse(_userProfile!['created_at']),
+                        ),
+                      ),
+                      Spacer(),
+                      ElevatedButton(
+                        onPressed: () {
+                          // Implement edit profile functionality
+                        },
+                        child: Text('Edit Profile'),
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: Size(double.infinity, 50),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                child: Text(
-                  "Sign Out",
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
-  Widget _buildMenuItem(IconData icon, String title) {
-    return Container(
-      margin: EdgeInsets.symmetric(vertical: 6),
-      padding: EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Color(0xFF393E46),
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
-        ],
-      ),
-      child: Row(
+  Widget _buildProfileItem(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: Colors.white70, size: 22),
-          SizedBox(width: 12),
-          Text(title, style: TextStyle(color: Colors.white, fontSize: 16)),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey,
+            ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Divider(),
         ],
       ),
     );

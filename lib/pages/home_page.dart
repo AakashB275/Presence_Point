@@ -41,6 +41,11 @@ class _HomePageState extends State<HomePage> {
           children: [
             const SizedBox(height: 50),
             ElevatedButton(
+                onPressed: () {}, child: Text("Check Detailed Report")),
+            SizedBox(
+              height: 20,
+            ),
+            ElevatedButton(
               onPressed: _signOut,
               child: const Text("Sign out"),
             ),

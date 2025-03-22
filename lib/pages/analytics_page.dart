@@ -78,11 +78,6 @@ class _AnalyticsPage extends State<AnalyticsPage> {
               SizedBox(
                 height: 30,
               ),
-              ElevatedButton(
-                  onPressed: () {}, child: Text("Check Detailed Report")),
-              SizedBox(
-                height: 20,
-              ),
             ],
           ),
         ));
