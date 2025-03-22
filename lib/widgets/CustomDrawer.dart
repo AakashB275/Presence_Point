@@ -50,6 +50,27 @@ class CustomDrawer extends StatelessWidget {
             },
           ),
           ListTile(
+            leading: Icon(Icons.location_pin),
+            title: const Text('Set Location'),
+            onTap: () {
+              Navigator.pushReplacementNamed(context, '/geofencingscreen');
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.timer),
+            title: const Text('Track Time (CheckIn)'),
+            onTap: () {
+              Navigator.pushReplacementNamed(context, '/usercheckin');
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.group),
+            title: const Text('New Organisation'),
+            onTap: () {
+              Navigator.pushReplacementNamed(context, '/neworganisation');
+            },
+          ),
+          ListTile(
             leading: Icon(Icons.home),
             title: const Text('Home'),
             onTap: () {

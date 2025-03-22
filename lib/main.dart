@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:presence_point_2/pages/home_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import './pages/login.dart';
 import './pages/analytics_page.dart';
@@ -7,6 +8,7 @@ import './pages/profile.dart';
 import './pages/geofencing-implementation.dart';
 import 'pages/new_organisation.dart';
 import './pages/organisation_details.dart';
+import './pages/user_checkin.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,14 +23,16 @@ Future<void> main() async {
     debugShowCheckedModeBanner: false,
     initialRoute: '/',
     routes: {
-      '/': (context) => NewOrganisation(),
+      '/': (context) => HomePage(),
       '/login': (context) => LoginPage(),
-      '/home': (context) => GeofencingMapScreen(),
+      '/home': (context) => HomePage(),
       '/register': (context) => RegisterScreen(),
       '/profile': (context) => Profile(),
       '/analytics': (context) => AnalyticsPage(),
       '/neworganisation': (context) => NewOrganisation(),
       '/organisationdetails': (context) => OrganisationDetails(),
+      '/usercheckin': (context) => UserCheckin(),
+      '/geofencingscreen': (context) => GeofencingMapScreen(),
     },
   ));
 }

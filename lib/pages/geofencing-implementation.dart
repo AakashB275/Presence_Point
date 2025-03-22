@@ -22,7 +22,7 @@ class _GeofencingMapScreenState extends State<GeofencingMapScreen> {
 
   // Geofence parameters
   final List<LatLng> geofencePoints = [];
-  double geofenceRadius = 200.0; // radius in meters
+  double geofenceRadius = 100.0; // radius in meters
   bool isInsideGeofence = false;
   bool isGeofenceActive = false;
 
@@ -350,6 +350,30 @@ class _GeofencingMapScreenState extends State<GeofencingMapScreen> {
                     textAlign: TextAlign.center,
                   ),
                 ),
+                if (geofencePoints.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Chip(
+                          label: Text(
+                              'Radius: ${geofenceRadius.toStringAsFixed(1)}m'),
+                          avatar: const Icon(Icons.radar, size: 16),
+                          backgroundColor: Colors.blue.shade100,
+                        ),
+                        const SizedBox(width: 8),
+                        TextButton.icon(
+                          icon: const Icon(Icons.edit, size: 16),
+                          label: const Text('Change'),
+                          onPressed: _showRadiusDialog,
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
               ],
             ),
       floatingActionButton: FloatingActionButton(
