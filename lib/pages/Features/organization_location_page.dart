@@ -1,38 +1,35 @@
-import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:http/http.dart' as http;
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-class GeofencingMapScreen extends StatefulWidget {
-  const GeofencingMapScreen({super.key});
+class OrganizationLocationScreen extends StatefulWidget {
+  final String? orgId; // Optional parameter to receive organization ID
+
+  const OrganizationLocationScreen({
+    super.key,
+    this.orgId,
+  });
 
   @override
-  State<GeofencingMapScreen> createState() => _GeofencingMapScreenState();
+  State<OrganizationLocationScreen> createState() =>
+      _OrganizationLocationScreenState();
 }
 
-class _GeofencingMapScreenState extends State<GeofencingMapScreen> {
-  final String goMapsApiKey = 'YOUR_GO_MAPS_API_KEY';
+class _OrganizationLocationScreenState
+    extends State<OrganizationLocationScreen> {
   final MapController mapController = MapController();
-  Future<void> _saveRadius(double radius) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble('geofence_radius', radius);
-  }
+  final supabase = Supabase.instance.client;
+  bool _isLoading = false;
 
   // Current user position
   LatLng? currentPosition;
 
-  // Geofence parameters
-  final List<LatLng> geofencePoints = [];
-  double geofenceRadius = 100.0; // radius in meters
-  bool isInsideGeofence = false;
-  bool isGeofenceActive = false;
-
-  // Streaming position updates
-  StreamSubscription<Position>? positionStream;
+  // Location parameters
+  LatLng? selectedLocation;
+  double locationRadius = 200.0; // default radius in meters
 
   // Controller for radius input
   final TextEditingController radiusController =
@@ -43,14 +40,29 @@ class _GeofencingMapScreenState extends State<GeofencingMapScreen> {
     super.initState();
     _requestLocationPermission();
     _getCurrentLocation();
-    _startPositionStream();
+    _loadSavedRadius();
   }
 
   @override
   void dispose() {
-    positionStream?.cancel();
     radiusController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadSavedRadius() async {
+    final prefs = await SharedPreferences.getInstance();
+    double? savedRadius = prefs.getDouble('location_radius');
+    if (savedRadius != null) {
+      setState(() {
+        locationRadius = savedRadius;
+        radiusController.text = savedRadius.toString();
+      });
+    }
+  }
+
+  Future<void> _saveRadius(double radius) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('location_radius', radius);
   }
 
   Future<void> _requestLocationPermission() async {
@@ -86,36 +98,14 @@ class _GeofencingMapScreenState extends State<GeofencingMapScreen> {
 
       // Center map on current position
       mapController.move(currentPosition!, 15.0);
-
-      // Check if user is inside geofence
-      _checkGeofence();
     } catch (e) {
       print('Error getting location: $e');
     }
   }
 
-  void _startPositionStream() {
-    positionStream = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 10, // Update every 10 meters
-      ),
-    ).listen((Position position) {
-      setState(() {
-        currentPosition = LatLng(position.latitude, position.longitude);
-      });
-
-      // Check if user is inside geofence
-      _checkGeofence();
-    });
-  }
-
-  void _addGeofencePoint(LatLng point) {
-    // For simplicity, we'll just allow a single point for circular geofence
+  void _selectLocation(LatLng point) {
     setState(() {
-      geofencePoints.clear(); // Clear existing points
-      geofencePoints.add(point);
-      isGeofenceActive = true;
+      selectedLocation = point;
     });
 
     // Show a confirmation dialog for the radius
@@ -127,7 +117,7 @@ class _GeofencingMapScreenState extends State<GeofencingMapScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Set Geofence Radius'),
+          title: const Text('Set Location Radius'),
           content: TextField(
             controller: radiusController,
             keyboardType: TextInputType.number,
@@ -146,10 +136,9 @@ class _GeofencingMapScreenState extends State<GeofencingMapScreen> {
             TextButton(
               onPressed: () {
                 setState(() {
-                  geofenceRadius = double.parse(radiusController.text);
+                  locationRadius = double.parse(radiusController.text);
                 });
-                _saveRadius(geofenceRadius); // Save the radius
-                _checkGeofence();
+                _saveRadius(locationRadius);
                 Navigator.of(context).pop();
               },
               child: const Text('Set'),
@@ -160,96 +149,76 @@ class _GeofencingMapScreenState extends State<GeofencingMapScreen> {
     );
   }
 
-  void _clearGeofence() {
+  void _clearLocation() {
     setState(() {
-      geofencePoints.clear();
-      isInsideGeofence = false;
-      isGeofenceActive = false;
+      selectedLocation = null;
     });
   }
 
-  void _checkGeofence() {
-    if (currentPosition == null || geofencePoints.isEmpty) {
-      setState(() {
-        isInsideGeofence = false;
-        isGeofenceActive = false;
-      });
+  // Function to save organization location to Supabase
+  Future<void> _saveOrganizationLocation() async {
+    if (selectedLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please set a location first')),
+      );
       return;
     }
 
-    // For a circular geofence around a single point
-    double distance = Geolocator.distanceBetween(
-      currentPosition!.latitude,
-      currentPosition!.longitude,
-      geofencePoints[0].latitude,
-      geofencePoints[0].longitude,
-    );
-
-    bool wasInside = isInsideGeofence;
-
     setState(() {
-      isInsideGeofence = distance <= geofenceRadius;
-      isGeofenceActive = true;
+      _isLoading = true;
     });
 
-    // Only trigger events if the status has changed
-    if (isInsideGeofence && !wasInside) {
-      _onEnterGeofence();
-    } else if (!isInsideGeofence && wasInside) {
-      _onExitGeofence();
-    }
-  }
-
-  void _onEnterGeofence() {
-    // Handle enter geofence event
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Entered geofence area!'),
-        backgroundColor: Colors.green,
-      ),
-    );
-
-    // You can call Go Maps API here to log the entry
-    _logGeofenceEvent('enter');
-  }
-
-  void _onExitGeofence() {
-    // Handle exit geofence event
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Exited geofence area!'),
-        backgroundColor: Colors.red,
-      ),
-    );
-
-    // You can call Go Maps API here to log the exit
-    _logGeofenceEvent('exit');
-  }
-
-  Future<void> _logGeofenceEvent(String eventType) async {
     try {
-      final response = await http.post(
-        Uri.parse('https://api.gomaps.example/geofence/log'),
-        headers: <String, String>{
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $goMapsApiKey',
-        },
-        body: jsonEncode(<String, dynamic>{
-          'event_type': eventType,
-          'latitude': currentPosition!.latitude,
-          'longitude': currentPosition!.longitude,
-          'timestamp': DateTime.now().toIso8601String(),
-          'user_id': 'user_123', // Replace with actual user ID
-        }),
-      );
+      Map<String, dynamic> data = {
+        'latitude': selectedLocation!.latitude,
+        'longitude': selectedLocation!.longitude,
+        'geofence_radius': locationRadius,
+      };
 
-      if (response.statusCode == 200) {
-        print('Successfully logged geofence $eventType event');
-      } else {
-        print('Failed to log geofence event: ${response.body}');
+      // If we're creating a new organization
+      if (widget.orgId == null) {
+        // Store in shared preferences to be used when creating organization
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setDouble('org_latitude', selectedLocation!.latitude);
+        await prefs.setDouble('org_longitude', selectedLocation!.longitude);
+        await prefs.setDouble('org_geofence_radius', locationRadius);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Location saved for organization creation'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        Navigator.pushReplacementNamed(context, '/organizationdetails');
+      }
+      // If we're updating an existing organization
+      else {
+        await supabase
+            .from('organizations')
+            .update(data)
+            .eq('org_id', widget.orgId as Object);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Organization location updated successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        Navigator.pushReplacementNamed(context, '/home');
       }
     } catch (e) {
-      print('Error logging geofence event: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error saving location: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
@@ -257,23 +226,24 @@ class _GeofencingMapScreenState extends State<GeofencingMapScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Geofencing'),
+        title: const Text('Set Organization Location'),
+        backgroundColor: Colors.amber,
         actions: [
           IconButton(
             icon: const Icon(Icons.edit),
             onPressed: () {
-              if (geofencePoints.isNotEmpty) {
+              if (selectedLocation != null) {
                 _showRadiusDialog();
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Add a geofence point first')),
+                  const SnackBar(content: Text('Select a location first')),
                 );
               }
             },
           ),
           IconButton(
             icon: const Icon(Icons.delete),
-            onPressed: _clearGeofence,
+            onPressed: _clearLocation,
           ),
         ],
       ),
@@ -287,7 +257,7 @@ class _GeofencingMapScreenState extends State<GeofencingMapScreen> {
                     options: MapOptions(
                       center: currentPosition!,
                       zoom: 15.0,
-                      onTap: (_, point) => _addGeofencePoint(point),
+                      onTap: (_, point) => _selectLocation(point),
                     ),
                     children: [
                       TileLayer(
@@ -295,7 +265,7 @@ class _GeofencingMapScreenState extends State<GeofencingMapScreen> {
                             'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                         userAgentPackageName: 'com.example.app',
                       ),
-                      // Draw geofence points
+                      // Draw markers
                       MarkerLayer(
                         markers: [
                           // Current position marker
@@ -304,39 +274,36 @@ class _GeofencingMapScreenState extends State<GeofencingMapScreen> {
                             width: 80,
                             height: 80,
                             builder: (context) => Container(
-                              child: Icon(
-                                Icons.location_on,
-                                color: isInsideGeofence
-                                    ? Colors.green
-                                    : Colors.blue,
-                                size: 40,
+                              child: const Icon(
+                                Icons.my_location,
+                                color: Colors.blue,
+                                size: 30,
                               ),
                             ),
                           ),
-                          // Geofence points markers
-                          ...geofencePoints.map(
-                            (point) => Marker(
-                              point: point,
+                          // Selected location marker
+                          if (selectedLocation != null)
+                            Marker(
+                              point: selectedLocation!,
                               width: 80,
                               height: 80,
                               builder: (context) => Container(
-                                child: Icon(
-                                  Icons.radio_button_checked,
+                                child: const Icon(
+                                  Icons.location_on,
                                   color: Colors.red,
-                                  size: 20,
+                                  size: 40,
                                 ),
                               ),
                             ),
-                          ),
                         ],
                       ),
-                      // Draw geofence circle
-                      if (geofencePoints.isNotEmpty)
+                      // Draw radius circle
+                      if (selectedLocation != null)
                         CircleLayer(
                           circles: [
                             CircleMarker(
-                              point: geofencePoints.first,
-                              radius: geofenceRadius,
+                              point: selectedLocation!,
+                              radius: locationRadius,
                               color: Colors.red.withOpacity(0.3),
                               borderColor: Colors.red,
                               borderStrokeWidth: 2,
@@ -351,12 +318,12 @@ class _GeofencingMapScreenState extends State<GeofencingMapScreen> {
                   padding: const EdgeInsets.all(8),
                   color: Colors.white,
                   child: const Text(
-                    'Tap on the map to set a geofence location',
+                    'Tap on the map to set your organization location',
                     style: TextStyle(fontSize: 16),
                     textAlign: TextAlign.center,
                   ),
                 ),
-                if (geofencePoints.isNotEmpty)
+                if (selectedLocation != null)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8.0),
                     child: Row(
@@ -364,7 +331,7 @@ class _GeofencingMapScreenState extends State<GeofencingMapScreen> {
                       children: [
                         Chip(
                           label: Text(
-                              'Radius: ${geofenceRadius.toStringAsFixed(1)}m'),
+                              'Radius: ${locationRadius.toStringAsFixed(1)}m'),
                           avatar: const Icon(Icons.radar, size: 16),
                           backgroundColor: Colors.blue.shade100,
                         ),
@@ -380,36 +347,53 @@ class _GeofencingMapScreenState extends State<GeofencingMapScreen> {
                       ],
                     ),
                   ),
+                // Location info display
+                if (selectedLocation != null)
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Column(
+                          children: [
+                            Text(
+                              'Selected Location',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Latitude: ${selectedLocation!.latitude.toStringAsFixed(6)}',
+                              style: const TextStyle(fontFamily: 'monospace'),
+                            ),
+                            Text(
+                              'Longitude: ${selectedLocation!.longitude.toStringAsFixed(6)}',
+                              style: const TextStyle(fontFamily: 'monospace'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                // Save location button
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _saveOrganizationLocation,
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 50),
+                      backgroundColor: Colors.amber,
+                    ),
+                    child: _isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text("Save Organization Location"),
+                  ),
+                ),
               ],
             ),
       floatingActionButton: FloatingActionButton(
         onPressed: _getCurrentLocation,
+        backgroundColor: Colors.amber,
         child: const Icon(Icons.my_location),
-      ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16),
-        color: !isGeofenceActive
-            ? Colors.grey
-            : (isInsideGeofence ? Colors.green : Colors.red),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              !isGeofenceActive
-                  ? Icons.location_off
-                  : (isInsideGeofence ? Icons.check_circle : Icons.cancel),
-              color: Colors.white,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              !isGeofenceActive
-                  ? 'No Active Geofence'
-                  : (isInsideGeofence ? 'Inside Geofence' : 'Outside Geofence'),
-              style: const TextStyle(color: Colors.white, fontSize: 18),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
       ),
     );
   }

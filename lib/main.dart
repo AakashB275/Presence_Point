@@ -7,7 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'pages/Features/analytics_page.dart';
 import 'pages/Auth/register.dart';
 import 'pages/User_Pages/profile.dart';
-import 'pages/Features/geofencing-implementation.dart';
+import 'pages/Features/organization_location_page.dart';
 import 'pages/Organization/new_organisation.dart';
 import 'pages/Organization/organisation_details.dart';
 import 'pages/User_Pages/user_checkin.dart';
@@ -33,7 +33,7 @@ Future<void> main() async {
       '/organisationdetails': (context) => OrganisationDetails(),
       '/leave': (context) => LeavesScreen(),
       '/usercheckin': (context) => UserCheckin(),
-      '/geofencingscreen': (context) => GeofencingMapScreen(),
+      '/organizationlocation': (context) => const OrganizationLocationScreen(),
       '/neworganisation': (context) => NewOrganisation(),
       '/profile': (context) => ProfileScreen(),
     },
