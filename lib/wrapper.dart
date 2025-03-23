@@ -1,5 +1,6 @@
 // lib/wrapper.dart
 import 'package:flutter/material.dart';
+import 'package:presence_point_2/pages/Auth/get_started.dart';
 import 'package:provider/provider.dart';
 import 'package:presence_point_2/services/user_state.dart';
 import 'package:presence_point_2/pages/Auth/login.dart';
@@ -34,7 +35,7 @@ class Wrapper extends StatelessWidget {
     if (userState.isFirstTime) {
       return OnboardingScreen();
     } else if (!userState.isLoggedIn) {
-      return LoginPage();
+      return GetStarted();
     } else if (!userState.hasJoinedOrg) {
       return NewOrganisation();
     } else {
