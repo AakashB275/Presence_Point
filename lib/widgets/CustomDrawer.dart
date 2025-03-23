@@ -10,14 +10,16 @@ class CustomDrawer extends StatelessWidget {
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
-          const DrawerHeader(
-            decoration: BoxDecoration(color: Colors.amber),
-            child: Text(
-              'Menu',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
+          Center(
+            child: const DrawerHeader(
+              decoration: BoxDecoration(color: Colors.amber),
+              child: Text(
+                'Menu',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
@@ -28,13 +30,13 @@ class CustomDrawer extends StatelessWidget {
               Navigator.pushReplacementNamed(context, '/analytics');
             },
           ),
-          ListTile(
-            leading: Icon(Icons.dashboard),
-            title: const Text('Dashboard'),
-            onTap: () {
-              Navigator.pushReplacementNamed(context, '/dashboard');
-            },
-          ),
+          // ListTile(
+          //   leading: Icon(Icons.dashboard),
+          //   title: const Text('Dashboard'),
+          //   onTap: () {
+          //     Navigator.pushReplacementNamed(context, '/dashboard');
+          //   },
+          // ),
           ListTile(
             leading: Icon(Icons.notification_important),
             title: const Text('Important Notice'),
