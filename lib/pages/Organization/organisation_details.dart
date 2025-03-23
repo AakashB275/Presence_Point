@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:presence_point_2/services/user_state.dart';
+import 'package:provider/provider.dart';
 
 class OrganisationDetails extends StatefulWidget {
   const OrganisationDetails({super.key});
@@ -97,6 +99,9 @@ class _OrganisationDetailsState extends State<OrganisationDetails> {
         await prefs.remove('org_longitude');
         await prefs.remove('org_geofence_radius');
       }
+
+      // Update the UserState to reflect organization membership
+      Provider.of<UserState>(context, listen: false).joinOrganization();
 
       Fluttertoast.showToast(
         msg: "Organization created successfully!",

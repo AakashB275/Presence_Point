@@ -1,50 +1,41 @@
+// lib/wrapper.dart
 import 'package:flutter/material.dart';
-import 'package:presence_point_2/pages/home_page.dart';
+import 'package:provider/provider.dart';
+import 'package:presence_point_2/services/user_state.dart';
 import 'package:presence_point_2/pages/Auth/login.dart';
-import 'package:presence_point_2/pages/Auth/onboarding_screen.dart'; // Add onboarding screen
+import 'package:presence_point_2/pages/Auth/onboarding_screen.dart';
 import 'package:presence_point_2/pages/Organization/new_organisation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:presence_point_2/pages/home_page.dart';
 
-class Wrapper extends StatefulWidget {
-  @override
-  _WrapperState createState() => _WrapperState();
-}
-
-class _WrapperState extends State<Wrapper> {
-  final SupabaseClient supabase = Supabase.instance.client;
-  bool? hasJoinedOrg;
-  bool? isFirstTime;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkUserStatus();
-  }
-
-  Future<void> _checkUserStatus() async {
-    final prefs = await SharedPreferences.getInstance();
-    bool firstTime = prefs.getBool('first_time') ?? true;
-    bool joinedOrg = prefs.getBool('joined_org') ?? false;
-
-    setState(() {
-      isFirstTime = firstTime;
-      hasJoinedOrg = joinedOrg;
-    });
-  }
-
+class Wrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    if (isFirstTime == null || hasJoinedOrg == null) {
+    // Access the user state
+    final userState = Provider.of<UserState>(context);
+
+    // Show loading indicator while initializing
+    if (userState.isLoading) {
       return Scaffold(
-          body: Center(child: CircularProgressIndicator())); // Loading state
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text("Setting things up...",
+                  style: TextStyle(fontSize: 16, color: Colors.grey[700]))
+            ],
+          ),
+        ),
+      );
     }
 
-    if (isFirstTime!) {
+    // User flow decision tree
+    if (userState.isFirstTime) {
       return OnboardingScreen();
-    } else if (supabase.auth.currentUser == null) {
+    } else if (!userState.isLoggedIn) {
       return LoginPage();
-    } else if (!hasJoinedOrg!) {
+    } else if (!userState.hasJoinedOrg) {
       return NewOrganisation();
     } else {
       return HomePage();

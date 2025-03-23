@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import 'package:presence_point_2/services/user_state.dart';
 
 class NewOrganisation extends StatefulWidget {
   const NewOrganisation({super.key});
@@ -15,9 +17,11 @@ class _NewOrganisationState extends State<NewOrganisation> {
 
   Future<void> _joinOrganisation() async {
     if (_orgCodeController.text.isNotEmpty) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('joined_org', true); // Save joined status
-      Navigator.pushReplacementNamed(context, "/home"); // Redirect to home
+      // Use the Provider to update the state
+      Provider.of<UserState>(context, listen: false).joinOrganization();
+
+      // Navigate to home
+      Navigator.pushReplacementNamed(context, "/home");
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Enter a valid organization code")),
@@ -32,9 +36,9 @@ class _NewOrganisationState extends State<NewOrganisation> {
         backgroundColor: Colors.amber,
         title: Text("Organisation Setup"),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back), // Back Button at Top Left
+          icon: Icon(Icons.arrow_back),
           onPressed: () {
-            Navigator.pushReplacementNamed(context, "/home"); // Navigate Back
+            Navigator.pushReplacementNamed(context, "/home");
           },
         ),
       ),
@@ -61,6 +65,9 @@ class _NewOrganisationState extends State<NewOrganisation> {
               SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () {
+                  // When creating organization, also mark as joined before navigating
+                  Provider.of<UserState>(context, listen: false)
+                      .joinOrganization();
                   Navigator.pushReplacementNamed(
                       context, "/organisationdetails");
                 },
