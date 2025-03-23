@@ -367,8 +367,8 @@ class _GeofencingMapScreenState extends State<UserCheckin> {
           'latitude': currentPosition!.latitude,
           'longitude': currentPosition!.longitude,
           'timestamp': DateTime.now().toIso8601String(),
-          'user_id': 'user_123', // Replace with actual user ID
-          'geofence_radius': geofenceRadius, // Include radius in log
+          'user_id': 'user_123',
+          'geofence_radius': geofenceRadius,
         }),
       );
 

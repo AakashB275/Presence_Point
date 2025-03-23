@@ -16,35 +16,94 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   final supabase = Supabase.instance.client;
   bool _isObscure = true;
+  bool _isLoading = false;
 
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
+    setState(() {
+      _isLoading = true;
+    });
+
     String username = _usernameController.text.trim();
     String email = _emailController.text.trim();
     String password = _passwordController.text.trim();
 
     try {
+      // Step 1: Create the authentication account
       final AuthResponse response = await supabase.auth.signUp(
         email: email,
         password: password,
-        data: {'username': username}, // Store additional user info
+        data: {'username': username}, // Basic data in auth metadata
       );
 
       if (response.user != null) {
-        await _showMessageDialog(
-            "Registration successful. Please verify your email before logging in.");
-        if (mounted) {
-          Navigator.pushReplacementNamed(context, "/login");
+        try {
+          // Step 2: Insert user data into your existing table
+          // Using a separate try-catch for better error isolation
+          await _insertUserData(
+            authUser: response.user!,
+            username: username,
+            email: email,
+            password: password,
+          );
+
+          await _showMessageDialog(
+              "Registration successful. Please verify your email before logging in.");
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, "/login");
+          }
+        } catch (dbError) {
+          // Handle database insertion errors specifically
+          print("Database error: $dbError");
+          await _showMessageDialog(
+              "User created but profile data couldn't be stored: ${dbError.toString()}");
         }
       }
     } on AuthException catch (e) {
       String errorMessage = e.message;
-      await _showMessageDialog(errorMessage);
+      await _showMessageDialog("Auth error: $errorMessage");
     } catch (e) {
-      await _showMessageDialog("An unexpected error occurred.");
+      print("Unexpected error: $e");
+      await _showMessageDialog("An unexpected error occurred: ${e.toString()}");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  // Function to insert user data into your Supabase table
+  Future<void> _insertUserData({
+    required User authUser,
+    required String username,
+    required String email,
+    required String password,
+  }) async {
+    // Debug print to verify data
+    print("Attempting to insert user data for ${authUser.id}");
+    print("Name: $username, Email: $email");
+
+    try {
+      // Insert into 'users' table - adjust table name if needed
+      final response = await supabase.from('user').insert({
+        // 'id': authUser.id, // Uncomment if you want to use auth ID and your table accepts UUID
+        'name': username,
+        'email': email,
+        'password': password,
+        'role': "Employee",
+        'created_at': DateTime.now().toIso8601String(),
+      }).select();
+
+      print("Insert successful: $response");
+    } catch (e) {
+      print("Database insertion error: $e");
+      // Rethrow to handle in the calling function
+      throw Exception('Failed to create user profile: ${e.toString()}');
     }
   }
 
@@ -177,7 +236,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: 24),
                     ElevatedButton(
-                      onPressed: _register,
+                      onPressed: _isLoading ? null : _register,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.amber,
                         shape: RoundedRectangleBorder(
@@ -188,10 +247,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           vertical: 10,
                         ),
                       ),
-                      child: const Text(
-                        "Register",
-                        style: TextStyle(fontSize: 18, color: Colors.black),
-                      ),
+                      child: _isLoading
+                          ? const CircularProgressIndicator(color: Colors.black)
+                          : const Text(
+                              "Register",
+                              style:
+                                  TextStyle(fontSize: 18, color: Colors.black),
+                            ),
                     ),
                     const SizedBox(height: 20),
                     GestureDetector(

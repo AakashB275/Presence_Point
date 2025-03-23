@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:presence_point_2/pages/get_started.dart';
 import 'package:presence_point_2/pages/home_page.dart';
 import 'package:presence_point_2/pages/leaves.dart';
 import 'package:presence_point_2/pages/login.dart';
