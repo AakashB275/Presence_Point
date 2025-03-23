@@ -190,7 +190,7 @@ class _OrganizationLocationScreenState
           ),
         );
 
-        Navigator.pushReplacementNamed(context, '/organizationdetails');
+        Navigator.pushReplacementNamed(context, '/organisationdetails');
       }
       // If we're updating an existing organization
       else {

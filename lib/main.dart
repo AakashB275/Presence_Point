@@ -33,7 +33,7 @@ Future<void> main() async {
       '/organisationdetails': (context) => OrganisationDetails(),
       '/leave': (context) => LeavesScreen(),
       '/usercheckin': (context) => UserCheckin(),
-      '/organizationlocation': (context) => const OrganizationLocationScreen(),
+      '/organizationlocation': (context) => OrganizationLocationScreen(),
       '/neworganisation': (context) => NewOrganisation(),
       '/profile': (context) => ProfileScreen(),
     },
