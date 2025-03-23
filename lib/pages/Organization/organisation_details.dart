@@ -90,7 +90,7 @@ class _OrganisationDetailsState extends State<OrganisationDetails> {
 
       // Insert data into the 'organizations' table
       final response =
-          await supabase.from('organizations').insert(data).select();
+          await supabase.from('organization').insert(data).select();
 
       // Clear saved location data after successful creation
       if (_hasLocation) {
