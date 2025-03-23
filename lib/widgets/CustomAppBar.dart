@@ -23,6 +23,12 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       ),
       actions: [
         IconButton(
+          icon: Icon(Icons.notification_important),
+          onPressed: () {
+            Navigator.pushReplacementNamed(context, '/notices');
+          },
+        ),
+        IconButton(
           icon: Icon(Icons.account_circle_rounded),
           onPressed: () {
             Navigator.pushReplacementNamed(context, "/profile");
