@@ -13,6 +13,7 @@ import 'pages/Organization/organization_location_page.dart';
 import 'pages/Organization/new_organisation.dart';
 import 'pages/Organization/organisation_details.dart';
 import 'pages/User_Pages/user_checkin.dart';
+import 'pages/Features/geofencing_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,7 +37,7 @@ class MyApp extends StatelessWidget {
         initialRoute: '/',
         routes: {
           '/': (context) => Wrapper(),
-          '/home': (context) => HomePage(),
+          '/home': (context) => GeofencingPage(),
           '/analytics': (context) => AnalyticsPage(),
           '/login': (context) => LoginPage(),
           '/register': (context) => RegisterScreen(),
