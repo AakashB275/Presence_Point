@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class GeofencingMapScreen extends StatefulWidget {
   const GeofencingMapScreen({super.key});
@@ -16,6 +17,10 @@ class GeofencingMapScreen extends StatefulWidget {
 class _GeofencingMapScreenState extends State<GeofencingMapScreen> {
   final String goMapsApiKey = 'YOUR_GO_MAPS_API_KEY';
   final MapController mapController = MapController();
+  Future<void> _saveRadius(double radius) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('geofence_radius', radius);
+  }
 
   // Current user position
   LatLng? currentPosition;
@@ -143,6 +148,7 @@ class _GeofencingMapScreenState extends State<GeofencingMapScreen> {
                 setState(() {
                   geofenceRadius = double.parse(radiusController.text);
                 });
+                _saveRadius(geofenceRadius); // Save the radius
                 _checkGeofence();
                 Navigator.of(context).pop();
               },
@@ -251,7 +257,7 @@ class _GeofencingMapScreenState extends State<GeofencingMapScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Geofencing Demo'),
+        title: const Text('Geofencing'),
         actions: [
           IconButton(
             icon: const Icon(Icons.edit),

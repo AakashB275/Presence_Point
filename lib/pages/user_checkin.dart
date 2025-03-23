@@ -183,7 +183,7 @@ class _GeofencingMapScreenState extends State<UserCheckin> {
       });
 
       // Save the new radius
-      _saveRadius(newRadius);
+      _saveRadius(geofenceRadius);
 
       // Re-check geofence with new radius
       _checkGeofence();
