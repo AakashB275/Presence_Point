@@ -18,6 +18,12 @@ class _OrganisationDetailsState extends State<OrganisationDetails> {
       appBar: AppBar(
         centerTitle: true,
         backgroundColor: Colors.amber,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back), // Back Button at Top Left
+          onPressed: () {
+            Navigator.pushReplacementNamed(context, "/home"); // Navigate Back
+          },
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(20.0),

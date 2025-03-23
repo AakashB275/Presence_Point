@@ -1,42 +1,53 @@
 import 'package:flutter/material.dart';
+import 'package:presence_point_2/pages/home_page.dart';
+import 'package:presence_point_2/pages/login.dart';
+import 'package:presence_point_2/pages/onboarding_screen.dart'; // Add onboarding screen
+import 'package:presence_point_2/pages/new_organisation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import './pages/home_page.dart';
-import 'package:presence_point_2/pages/get_started.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class Wrapper extends StatefulWidget {
-  const Wrapper({super.key});
-
   @override
   _WrapperState createState() => _WrapperState();
 }
 
 class _WrapperState extends State<Wrapper> {
-  final supabase = Supabase.instance.client;
-  late Stream<AuthState> authStateStream;
+  final SupabaseClient supabase = Supabase.instance.client;
+  bool? hasJoinedOrg;
+  bool? isFirstTime;
 
   @override
   void initState() {
     super.initState();
-    authStateStream = supabase.auth.onAuthStateChange;
+    _checkUserStatus();
+  }
+
+  Future<void> _checkUserStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    bool firstTime = prefs.getBool('first_time') ?? true;
+    bool joinedOrg = prefs.getBool('joined_org') ?? false;
+
+    setState(() {
+      isFirstTime = firstTime;
+      hasJoinedOrg = joinedOrg;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: StreamBuilder<AuthState>(
-        stream: authStateStream,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.connectionState == ConnectionState.none) {
-            return const Center(child: Text('No internet connection'));
-          }
-          // If user is logged in, go to HomePage, otherwise show GetStarted screen
-          final session = supabase.auth.currentSession;
-          return session != null ? HomePage() : const GetStarted();
-        },
-      ),
-    );
+    if (isFirstTime == null || hasJoinedOrg == null) {
+      return Scaffold(
+          body: Center(child: CircularProgressIndicator())); // Loading state
+    }
+
+    if (isFirstTime!) {
+      return OnboardingScreen();
+    } else if (supabase.auth.currentUser == null) {
+      return LoginPage();
+    } else if (!hasJoinedOrg!) {
+      return NewOrganisation();
+    } else {
+      return HomePage();
+    }
   }
 }
