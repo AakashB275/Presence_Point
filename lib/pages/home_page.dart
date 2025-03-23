@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'location_service.dart';
+import '../services/location_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../widgets/CustomAppBar.dart';
 import '../widgets/CustomDrawer.dart';

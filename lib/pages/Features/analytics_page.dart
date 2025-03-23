@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:pie_chart/pie_chart.dart';
-import 'location_service.dart';
-import '../Widgets/BarChartWidget.dart';
-import '../Widgets/CustomAppBar.dart';
-import '../Widgets/CustomDrawer.dart';
+import '../../services/location_service.dart';
+import '../../Widgets/BarChartWidget.dart';
+import '../../Widgets/CustomAppBar.dart';
+import '../../Widgets/CustomDrawer.dart';
 
 class AnalyticsPage extends StatefulWidget {
   const AnalyticsPage({super.key});

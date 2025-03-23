@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:presence_point_2/pages/prefs.dart';
-import 'package:presence_point_2/pages/new_organisation.dart';
+import 'package:presence_point_2/pages/Auth/prefs.dart';
+import 'package:presence_point_2/pages/Organization/new_organisation.dart';
 
 class OnboardingScreen extends StatefulWidget {
   @override

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:presence_point_2/pages/home_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:presence_point_2/pages/login.dart';
-import 'package:presence_point_2/pages/register.dart';
+import 'package:presence_point_2/pages/Auth/login.dart';
+import 'package:presence_point_2/pages/Auth/register.dart';
 
 class GetStarted extends StatefulWidget {
   const GetStarted({super.key});

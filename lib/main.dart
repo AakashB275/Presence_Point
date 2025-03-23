@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:presence_point_2/pages/home_page.dart';
-import 'package:presence_point_2/pages/leaves.dart';
-import 'package:presence_point_2/pages/login.dart';
+import 'package:presence_point_2/pages/Features/leaves.dart';
+import 'package:presence_point_2/pages/Auth/login.dart';
 import 'package:presence_point_2/wrapper.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import './pages/analytics_page.dart';
-import './pages/register.dart';
-import './pages/profile.dart';
-import './pages/geofencing-implementation.dart';
-import 'pages/new_organisation.dart';
-import './pages/organisation_details.dart';
-import './pages/user_checkin.dart';
+import 'pages/Features/analytics_page.dart';
+import 'pages/Auth/register.dart';
+import 'pages/User_Pages/profile.dart';
+import 'pages/Features/geofencing-implementation.dart';
+import 'pages/Organization/new_organisation.dart';
+import 'pages/Organization/organisation_details.dart';
+import 'pages/User_Pages/user_checkin.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

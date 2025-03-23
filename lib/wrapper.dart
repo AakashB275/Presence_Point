@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:presence_point_2/pages/home_page.dart';
-import 'package:presence_point_2/pages/login.dart';
-import 'package:presence_point_2/pages/onboarding_screen.dart'; // Add onboarding screen
-import 'package:presence_point_2/pages/new_organisation.dart';
+import 'package:presence_point_2/pages/Auth/login.dart';
+import 'package:presence_point_2/pages/Auth/onboarding_screen.dart'; // Add onboarding screen
+import 'package:presence_point_2/pages/Organization/new_organisation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
