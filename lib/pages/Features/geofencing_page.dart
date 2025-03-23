@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:presence_point_2/widgets/CustomAppBar.dart';
+import 'package:presence_point_2/widgets/CustomDrawer.dart';
 
 class Organization {
   final int orgId;
@@ -42,6 +44,7 @@ class GeofencingPage extends StatefulWidget {
 
 class _GeofencingPageState extends State<GeofencingPage> {
   final _supabase = Supabase.instance.client;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   bool _isInGeofence = false;
   String _status = "Loading organization data...";
@@ -292,9 +295,8 @@ class _GeofencingPageState extends State<GeofencingPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_organization?.orgName ?? 'Attendance Tracking'),
-      ),
+      appBar: CustomAppBar(title: "Presence Point", scaffoldKey: _scaffoldKey),
+      drawer: CustomDrawer(),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Padding(

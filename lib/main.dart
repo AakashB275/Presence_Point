@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:presence_point_2/services/user_state.dart'; // You'll need to create this file
+import 'package:presence_point_2/services/user_state.dart';
 import 'package:presence_point_2/pages/home_page.dart';
 import 'package:presence_point_2/pages/Features/leaves.dart';
 import 'package:presence_point_2/pages/Auth/login.dart';
@@ -37,7 +37,7 @@ class MyApp extends StatelessWidget {
         initialRoute: '/',
         routes: {
           '/': (context) => Wrapper(),
-          '/home': (context) => GeofencingPage(),
+          '/home': (context) => HomePage(),
           '/analytics': (context) => AnalyticsPage(),
           '/login': (context) => LoginPage(),
           '/register': (context) => RegisterScreen(),
@@ -47,6 +47,7 @@ class MyApp extends StatelessWidget {
           '/organizationlocation': (context) => OrganizationLocationScreen(),
           '/neworganisation': (context) => NewOrganisation(),
           '/profile': (context) => ProfileScreen(),
+          '/geofencing': (context) => GeofencingPage(),
         },
       ),
     );
