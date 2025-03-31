@@ -26,18 +26,15 @@ class _NewOrganisationState extends State<NewOrganisation> {
     setState(() => _isLoading = true);
 
     try {
-      // Verify organization exists first
       final orgData = await Provider.of<UserState>(context, listen: false)
           .verifyOrganization(_orgCodeController.text.trim());
 
       if (orgData != null) {
-        // Now join with all required parameters
         await Provider.of<UserState>(context, listen: false).joinOrganization(
           orgId: orgData['org_id'].toString(),
           orgName: orgData['org_name'].toString(),
           orgCode: orgData['org_code'].toString(),
         );
-
         Navigator.pushReplacementNamed(context, "/home");
       } else {
         ScaffoldMessenger.of(context).showSnackBar(

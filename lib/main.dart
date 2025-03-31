@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:presence_point_2/pages/admin_home_page.dart';
+import 'package:presence_point_2/pages/employee_home_page.dart';
 import 'package:provider/provider.dart';
 import 'package:presence_point_2/services/user_state.dart';
-import 'package:presence_point_2/pages/home_page.dart';
 import 'package:presence_point_2/pages/Features/leaves.dart';
 import 'package:presence_point_2/pages/Auth/login.dart';
 import 'package:presence_point_2/wrapper.dart';
@@ -28,6 +29,8 @@ Future<void> main() async {
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
@@ -37,7 +40,11 @@ class MyApp extends StatelessWidget {
         initialRoute: '/',
         routes: {
           '/': (context) => Wrapper(),
-          '/home': (context) => HomePage(),
+          '/home': (context) {
+            final userState = Provider.of<UserState>(context);
+            if (userState.isAdmin) return const AdminHomePage();
+            return const EmployeeHomePage();
+          },
           '/analytics': (context) => AnalyticsPage(),
           '/login': (context) => LoginPage(),
           '/register': (context) => RegisterScreen(),

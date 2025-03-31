@@ -15,7 +15,6 @@ class WeeklyAttendanceChart extends StatelessWidget {
   Widget build(BuildContext context) {
     // Calculate chart parameters
     final maxHours = _calculateMaxHours();
-    final visibleBars = showWeekends ? 7 : 5;
 
     return AspectRatio(
       aspectRatio: 1.6,

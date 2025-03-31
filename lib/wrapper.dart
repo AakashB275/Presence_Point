@@ -1,45 +1,124 @@
-// lib/wrapper.dart
 import 'package:flutter/material.dart';
-import 'package:presence_point_2/pages/Auth/get_started.dart';
 import 'package:provider/provider.dart';
+import 'package:presence_point_2/pages/Auth/get_started.dart';
 import 'package:presence_point_2/services/user_state.dart';
-import 'package:presence_point_2/pages/Auth/login.dart';
 import 'package:presence_point_2/pages/Auth/onboarding_screen.dart';
 import 'package:presence_point_2/pages/Organization/new_organisation.dart';
-import 'package:presence_point_2/pages/home_page.dart';
+import 'package:presence_point_2/pages/employee_home_page.dart';
+import 'package:presence_point_2/pages/admin_home_page.dart';
 
-class Wrapper extends StatelessWidget {
+class Wrapper extends StatefulWidget {
+  const Wrapper({super.key});
+
   @override
-  Widget build(BuildContext context) {
-    // Access the user state
-    final userState = Provider.of<UserState>(context);
+  State<Wrapper> createState() => _WrapperState();
+}
 
-    // Show loading indicator while initializing
-    if (userState.isLoading) {
-      return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text("Setting things up...",
-                  style: TextStyle(fontSize: 16, color: Colors.grey[700]))
-            ],
-          ),
-        ),
+class _WrapperState extends State<Wrapper> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _verifyAuthState();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _verifyAuthState();
+    }
+  }
+
+  Future<void> _verifyAuthState() async {
+    final userState = Provider.of<UserState>(context, listen: false);
+    await userState.refreshUserState();
+
+    if (!mounted) return;
+
+    if (!userState.isLoggedIn) {
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/login',
+        (route) => false,
       );
+      return;
     }
 
-    // User flow decision tree
+    if (!userState.hasJoinedOrg) {
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/neworganisation',
+        (route) => false,
+      );
+      return;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final userState = Provider.of<UserState>(context);
+
+    if (userState.isLoading) {
+      return _buildLoadingScreen();
+    }
+
     if (userState.isFirstTime) {
       return OnboardingScreen();
-    } else if (!userState.isLoggedIn) {
-      return GetStarted();
-    } else if (!userState.hasJoinedOrg) {
-      return NewOrganisation();
-    } else {
-      return HomePage();
+    }
+
+    if (!userState.isLoggedIn) {
+      return const GetStarted();
+    }
+
+    if (!userState.hasJoinedOrg) {
+      return const NewOrganisation();
+    }
+
+    // Role-based routing with additional verification
+    return _RoleGuardedHomePage(userState: userState);
+  }
+
+  Widget _buildLoadingScreen() {
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(
+              "Loading your workspace...",
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[700],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RoleGuardedHomePage extends StatelessWidget {
+  final UserState userState;
+
+  const _RoleGuardedHomePage({required this.userState});
+
+  @override
+  Widget build(BuildContext context) {
+    // Double-check role before showing page
+    switch (userState.userRole?.toLowerCase()) {
+      case 'admin':
+        return const AdminHomePage();
+      default:
+        return const EmployeeHomePage();
     }
   }
 }

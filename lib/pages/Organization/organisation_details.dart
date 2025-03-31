@@ -132,21 +132,21 @@ class _OrganisationDetailsState extends State<OrganisationDetails> {
     return '${now.millisecondsSinceEpoch % 1000}$random'; // Ensures numeric-only
   }
 
-  Future<void> _validateOrganizationName(String orgName) async {
-    try {
-      final existingOrg = await supabase
-          .from('organization')
-          .select('org_name')
-          .eq('org_name', orgName)
-          .maybeSingle();
+  // Future<void> _validateOrganizationName(String orgName) async {
+  //   try {
+  //     final existingOrg = await supabase
+  //         .from('organization')
+  //         .select('org_name')
+  //         .eq('org_name', orgName)
+  //         .maybeSingle();
 
-      if (existingOrg != null) {
-        throw Exception("Organization name '$orgName' already exists");
-      }
-    } on PostgrestException catch (e) {
-      throw Exception("Failed to validate organization name: ${e.message}");
-    }
-  }
+  //     if (existingOrg != null) {
+  //       throw Exception("Organization name '$orgName' already exists");
+  //     }
+  //   } on PostgrestException catch (e) {
+  //     throw Exception("Failed to validate organization name: ${e.message}");
+  //   }
+  // }
 
   Future<void> _clearLocationPreferences() async {
     final prefs = await SharedPreferences.getInstance();
@@ -163,20 +163,20 @@ class _OrganisationDetailsState extends State<OrganisationDetails> {
     }
   }
 
-  void _handleDatabaseError(PostgrestException e) {
-    String userMessage = "Database error occurred";
+  // void _handleDatabaseError(PostgrestException e) {
+  //   String userMessage = "Database error occurred";
 
-    if (e.code == '23505') {
-      userMessage = "Organization code already exists. Please try again.";
-    } else if (e.code == '42501') {
-      userMessage = "Permission denied. Contact your administrator.";
-    } else {
-      userMessage = "Database operation failed: ${e.message}";
-    }
+  //   if (e.code == '23505') {
+  //     userMessage = "Organization code already exists. Please try again.";
+  //   } else if (e.code == '42501') {
+  //     userMessage = "Permission denied. Contact your administrator.";
+  //   } else {
+  //     userMessage = "Database operation failed: ${e.message}";
+  //   }
 
-    _showErrorToast(userMessage);
-    debugPrint("Database error: ${e.toString()}");
-  }
+  //   _showErrorToast(userMessage);
+  //   debugPrint("Database error: ${e.toString()}");
+  // }
 
   void _handleError(String message) {
     _showErrorToast(message);
