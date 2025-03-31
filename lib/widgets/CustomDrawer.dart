@@ -22,6 +22,13 @@ class CustomDrawer extends StatelessWidget {
             ),
           ),
           ListTile(
+            leading: Icon(Icons.home),
+            title: const Text('Home'),
+            onTap: () {
+              Navigator.pushReplacementNamed(context, '/home');
+            },
+          ),
+          ListTile(
             leading: Icon(Icons.analytics_rounded),
             title: const Text('Analytics'),
             onTap: () {
@@ -51,9 +58,9 @@ class CustomDrawer extends StatelessWidget {
           ),
           ListTile(
             leading: Icon(Icons.location_pin),
-            title: const Text('Set Location'),
+            title: const Text('Leave Application'),
             onTap: () {
-              Navigator.pushReplacementNamed(context, '/geofencingscreen');
+              Navigator.pushReplacementNamed(context, '/leave');
             },
           ),
           ListTile(
@@ -65,16 +72,9 @@ class CustomDrawer extends StatelessWidget {
           ),
           ListTile(
             leading: Icon(Icons.group),
-            title: const Text('New Organisation'),
+            title: const Text('Organisation'),
             onTap: () {
               Navigator.pushReplacementNamed(context, '/neworganisation');
-            },
-          ),
-          ListTile(
-            leading: Icon(Icons.home),
-            title: const Text('Home'),
-            onTap: () {
-              Navigator.pushReplacementNamed(context, '/home');
             },
           ),
           SizedBox(
