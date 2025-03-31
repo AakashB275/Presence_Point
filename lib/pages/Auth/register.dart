@@ -90,7 +90,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     try {
       // Insert into 'users' table - adjust table name if needed
-      final response = await supabase.from('user').insert({
+      final response = await supabase.from('users').insert({
         // 'id': authUser.id, // Uncomment if you want to use auth ID and your table accepts UUID
         'name': username,
         'email': email,
