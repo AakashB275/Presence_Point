@@ -67,7 +67,7 @@ class CustomDrawer extends StatelessWidget {
             leading: Icon(Icons.timer),
             title: const Text('Track Time (CheckIn)'),
             onTap: () {
-              Navigator.pushReplacementNamed(context, '/usercheckin');
+              Navigator.pushReplacementNamed(context, '/geofencing');
             },
           ),
           ListTile(

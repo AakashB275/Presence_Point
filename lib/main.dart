@@ -14,7 +14,7 @@ import 'pages/Organization/organization_location_page.dart';
 import 'pages/Organization/new_organisation.dart';
 import 'pages/Organization/organisation_details.dart';
 import 'pages/User_Pages/user_checkin.dart';
-import 'pages/Features/geofencing_page.dart';
+import 'pages/geoloc.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,7 +54,7 @@ class MyApp extends StatelessWidget {
           '/organizationlocation': (context) => OrganizationLocationScreen(),
           '/neworganisation': (context) => NewOrganisation(),
           '/profile': (context) => ProfileScreen(),
-          '/geofencing': (context) => GeofencingPage(),
+          '/geofencing': (context) => GeoAttendancePage(),
         },
       ),
     );

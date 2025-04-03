@@ -8,14 +8,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:intl/intl.dart';
 
 class GeoAttendancePage extends StatefulWidget {
-  final int userId;
-  final int orgId;
-
-  const GeoAttendancePage({
-    Key? key,
-    required this.userId,
-    required this.orgId,
-  }) : super(key: key);
+  const GeoAttendancePage({Key? key}) : super(key: key);
 
   @override
   _GeoAttendancePageState createState() => _GeoAttendancePageState();
@@ -26,45 +19,312 @@ class _GeoAttendancePageState extends State<GeoAttendancePage> {
   final _service = FlutterBackgroundService();
   final _notificationsPlugin = FlutterLocalNotificationsPlugin();
 
+  // Database models
   Map<String, dynamic>? _userData;
   Map<String, dynamic>? _orgData;
+  Map<String, dynamic>? _currentAttendance;
 
+  // State variables
+  bool _isLoading = true;
   bool _isCheckedIn = false;
+  bool _isBackgroundServiceRunning = false;
+  String _statusMessage = 'Initializing...';
   DateTime? _checkInTime;
   Position? _lastPosition;
-  Timer? _locationTimer;
-
-  bool _isLoading = true;
-  String _statusMessage = 'Initializing...';
   double _distanceToOffice = 0.0;
-  bool _isBackgroundServiceRunning = false;
+  Timer? _locationTimer;
 
   @override
   void initState() {
     super.initState();
-    _initialize();
+    _initializeApp();
   }
 
-  Future<void> _initialize() async {
+  Future<void> _initializeApp() async {
     if (!mounted) return;
+
     setState(() => _isLoading = true);
 
     try {
       await _requestPermissions();
       await _initializeNotifications();
       await _initializeBackgroundService();
-      await _fetchUserData();
-      await _fetchOrgData();
-      await _checkAttendanceStatus();
-      _startLocationTracking();
+      await _loadUserData();
+
+      if (_userData != null) {
+        await _loadOrganizationData();
+        await _checkCurrentAttendanceStatus();
+        _startLocationTracking();
+      }
     } catch (e) {
-      _showError('Initialization failed: ${e.toString()}');
+      _handleError('Initialization failed', e);
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
       }
     }
   }
+
+  // ========================
+  // Database Operations
+  // ========================
+
+  Future<void> _loadUserData() async {
+    try {
+      final currentUser = _supabase.auth.currentUser;
+      if (currentUser == null) throw Exception('No authenticated user');
+
+      final response = await _supabase
+          .from('users')
+          .select()
+          .eq('auth_user_id', currentUser.id)
+          .single()
+          .timeout(const Duration(seconds: 10));
+
+      setState(() {
+        _userData = response;
+      });
+    } catch (e) {
+      throw Exception('Failed to load user data: $e');
+    }
+  }
+
+  Future<void> _loadOrganizationData() async {
+    try {
+      if (_userData == null || _userData!['org_id'] == null) {
+        throw Exception('User organization not found');
+      }
+
+      final response = await _supabase
+          .from('organizations')
+          .select()
+          .eq('org_id', _userData!['org_id'])
+          .single()
+          .timeout(const Duration(seconds: 10));
+
+      setState(() => _orgData = response);
+    } catch (e) {
+      throw Exception('Failed to load organization data: $e');
+    }
+  }
+
+  Future<void> _checkCurrentAttendanceStatus() async {
+    try {
+      if (_userData == null) return;
+
+      final now = DateTime.now().toUtc();
+      final today = DateTime(now.year, now.month, now.day);
+
+      final response = await _supabase
+          .from('attendance')
+          .select()
+          .eq('user_id', _userData!['user_id'])
+          .gte('check_in_time', today.toIso8601String())
+          .filter('check_out_time', 'is', 'null')
+          .maybeSingle()
+          .timeout(const Duration(seconds: 10));
+
+      if (response != null) {
+        setState(() {
+          _currentAttendance = response;
+          _isCheckedIn = true;
+          _checkInTime = DateTime.parse(response['check_in_time']);
+          _statusMessage =
+              'Currently checked in since ${DateFormat.Hm().format(_checkInTime!)}';
+        });
+
+        if (!_isBackgroundServiceRunning) {
+          await _service.startService();
+          setState(() => _isBackgroundServiceRunning = true);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error checking attendance status: $e');
+    }
+  }
+
+  Future<void> _sendCheckInToDatabase(Position position) async {
+    if (_userData == null || _orgData == null) return;
+
+    try {
+      final now = DateTime.now().toUtc();
+      final point = 'POINT(${position.longitude} ${position.latitude})';
+
+      final response = await _supabase
+          .from('attendance')
+          .insert({
+            'user_id': _userData!['user_id'],
+            'org_id': _orgData!['org_id'],
+            'check_in_time': now.toIso8601String(),
+            'check_in_location': point,
+            'geofence_radius': _orgData!['geofencing_radius'],
+          })
+          .select()
+          .single()
+          .timeout(const Duration(seconds: 10));
+
+      setState(() {
+        _currentAttendance = response;
+        _isCheckedIn = true;
+        _checkInTime = now;
+        _statusMessage = 'Checked in at ${DateFormat.Hm().format(now)}';
+      });
+
+      await _service.startService();
+      setState(() => _isBackgroundServiceRunning = true);
+      _startLocationTracking();
+
+      _showNotification(_notificationsPlugin, 'Check-In Successful',
+          'You have been checked in successfully');
+    } catch (e) {
+      throw Exception('Check-in failed: $e');
+    }
+  }
+
+  Future<void> _sendCheckOutToDatabase(Position position) async {
+    if (_userData == null || _currentAttendance == null) return;
+
+    try {
+      final now = DateTime.now().toUtc();
+      final point = 'POINT(${position.longitude} ${position.latitude})';
+      final checkInTime = DateTime.parse(_currentAttendance!['check_in_time']);
+      final hoursWorked = now.difference(checkInTime).inMinutes / 60.0;
+
+      await _supabase
+          .from('attendance')
+          .update({
+            'check_out_time': now.toIso8601String(),
+            'check_out_location': point,
+            'total_hours': hoursWorked,
+          })
+          .eq('id', _currentAttendance!['id'])
+          .timeout(const Duration(seconds: 10));
+
+      setState(() {
+        _isCheckedIn = false;
+        _checkInTime = null;
+        _currentAttendance = null;
+        _statusMessage =
+            'Checked out. Worked ${hoursWorked.toStringAsFixed(2)} hours';
+      });
+
+      _service.invoke('stopService');
+      setState(() => _isBackgroundServiceRunning = false);
+      _startLocationTracking();
+
+      _showNotification(_notificationsPlugin, 'Check-Out Successful',
+          'You have been checked out successfully');
+    } catch (e) {
+      throw Exception('Check-out failed: $e');
+    }
+  }
+
+  // ========================
+  // Location Services
+  // ========================
+
+  Future<void> _updateLocation() async {
+    if (!mounted) return;
+
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy:
+            _isCheckedIn ? LocationAccuracy.high : LocationAccuracy.medium,
+        timeLimit: const Duration(seconds: 15),
+      );
+
+      if (!mounted) return;
+
+      setState(() => _lastPosition = position);
+
+      if (_orgData != null) {
+        final distance = Geolocator.distanceBetween(
+          position.latitude,
+          position.longitude,
+          _orgData!['latitude'],
+          _orgData!['longitude'],
+        );
+
+        setState(() {
+          _distanceToOffice = distance;
+          _statusMessage = _isCheckedIn
+              ? 'Checked in (${_formatDuration(DateTime.now().difference(_checkInTime!))})'
+              : distance <= _orgData!['geofencing_radius']
+                  ? 'Within office area (${distance.toStringAsFixed(0)}m)'
+                  : 'Outside office area (${distance.toStringAsFixed(0)}m away)';
+        });
+
+        if (_isCheckedIn) {
+          _service.invoke('updateLocation', {
+            'latitude': position.latitude,
+            'longitude': position.longitude,
+            'orgId': _orgData!['org_id'],
+            'userId': _userData!['user_id'],
+            'radius': _orgData!['geofencing_radius'],
+            'orgLat': _orgData!['latitude'],
+            'orgLng': _orgData!['longitude'],
+            'isCheckedIn': _isCheckedIn,
+          });
+
+          // Auto check-out if left the geofence area
+          if (distance > _orgData!['geofencing_radius']) {
+            await _performCheckOut();
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Location update failed: $e');
+    }
+  }
+
+  // ========================
+  // User Actions
+  // ========================
+
+  Future<void> _performCheckIn() async {
+    if (!mounted || _lastPosition == null || _orgData == null) return;
+
+    final radius = _orgData!['geofencing_radius'];
+    if (_distanceToOffice > radius) {
+      _showError(
+          'You must be within ${radius.toStringAsFixed(0)}m of the office to check in');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await _sendCheckInToDatabase(_lastPosition!);
+      _showSnackBar('Successfully checked in');
+    } catch (e) {
+      _handleError('Check-in failed', e);
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _performCheckOut() async {
+    if (!mounted || _lastPosition == null) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      await _sendCheckOutToDatabase(_lastPosition!);
+      _showSnackBar('Successfully checked out');
+    } catch (e) {
+      _handleError('Check-out failed', e);
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  // ========================
+  // Helper Methods
+  // ========================
 
   Future<void> _requestPermissions() async {
     final status = await Permission.location.request();
@@ -102,9 +362,15 @@ class _GeoAttendancePageState extends State<GeoAttendancePage> {
       iosConfiguration: IosConfiguration(
         autoStart: false,
         onForeground: _onBackgroundServiceStart,
-        onBackground: _onIosBackground,
+        onBackground: _onIosBackground, // Placeholder function added below
       ),
     );
+  }
+
+  @pragma('vm:entry-point')
+  static Future<bool> _onIosBackground(ServiceInstance service) async {
+    // Placeholder implementation for iOS background handling
+    return true;
   }
 
   @pragma('vm:entry-point')
@@ -151,8 +417,8 @@ class _GeoAttendancePageState extends State<GeoAttendancePage> {
                 .from('attendance')
                 .select()
                 .eq('user_id', userId)
-                .gte('created_at', today.toIso8601String())
-                .filter('check_out_time', 'is', null)
+                .gte('check_in_time', today.toIso8601String())
+                .filter('check_out_time', 'is', 'null')
                 .maybeSingle();
 
             if (response != null) {
@@ -196,17 +462,25 @@ class _GeoAttendancePageState extends State<GeoAttendancePage> {
     });
   }
 
-  @pragma('vm:entry-point')
-  static Future<bool> _onIosBackground(ServiceInstance service) async {
-    WidgetsFlutterBinding.ensureInitialized();
-    return true;
+  void _startLocationTracking() {
+    _locationTimer?.cancel();
+    _locationTimer = Timer.periodic(
+      Duration(minutes: _isCheckedIn ? 1 : 5),
+      (timer) => _updateLocation(),
+    );
+    _updateLocation();
+  }
+
+  String _formatDuration(Duration duration) {
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+    return '${hours}h ${minutes}m';
   }
 
   static Future<void> _showNotification(
-    FlutterLocalNotificationsPlugin notificationsPlugin,
-    String title,
-    String body,
-  ) async {
+      FlutterLocalNotificationsPlugin notificationsPlugin,
+      String title,
+      String body) async {
     const androidDetails = AndroidNotificationDetails(
       'geo_attendance_actions',
       'Attendance Actions',
@@ -222,241 +496,20 @@ class _GeoAttendancePageState extends State<GeoAttendancePage> {
     );
   }
 
-  Future<void> _fetchUserData() async {
-    try {
-      final response = await _supabase
-          .from('users')
-          .select()
-          .eq('user_id', widget.userId)
-          .single();
-
-      if (mounted) {
-        setState(() => _userData = response);
-      }
-    } catch (e) {
-      throw Exception('Failed to fetch user data: $e');
-    }
-  }
-
-  Future<void> _fetchOrgData() async {
-    try {
-      final response = await _supabase
-          .from('organizations')
-          .select()
-          .eq('org_id', widget.orgId)
-          .single();
-
-      if (mounted) {
-        setState(() => _orgData = response);
-      }
-    } catch (e) {
-      throw Exception('Failed to fetch organization data: $e');
-    }
-  }
-
-  Future<void> _checkAttendanceStatus() async {
-    try {
-      final now = DateTime.now().toUtc();
-      final today = DateTime(now.year, now.month, now.day);
-
-      final response = await _supabase
-          .from('attendance')
-          .select()
-          .eq('user_id', widget.userId)
-          .gte('created_at', today.toIso8601String())
-          .filter('check_out_time', 'is', null)
-          .maybeSingle();
-
-      if (response != null && mounted) {
-        setState(() {
-          _isCheckedIn = true;
-          _checkInTime = DateTime.parse(response['check_in_time']);
-          _statusMessage = 'You are currently checked in';
-        });
-
-        if (!_isBackgroundServiceRunning) {
-          await _service.startService();
-          _isBackgroundServiceRunning = true;
-        }
-      }
-    } catch (e) {
-      debugPrint('Error checking attendance status: $e');
-    }
-  }
-
-  void _startLocationTracking() {
-    _locationTimer?.cancel();
-    _locationTimer = Timer.periodic(
-      Duration(minutes: _isCheckedIn ? 1 : 5),
-      (timer) => _updateLocation(),
-    );
-    _updateLocation();
-  }
-
-  Future<void> _updateLocation() async {
-    if (!mounted) return;
-
-    try {
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy:
-            _isCheckedIn ? LocationAccuracy.high : LocationAccuracy.medium,
-        timeLimit: const Duration(seconds: 15),
-      );
-
-      if (!mounted) return;
-
-      setState(() => _lastPosition = position);
-
-      if (_orgData != null) {
-        final orgLat = _orgData!['latitude'] as double;
-        final orgLng = _orgData!['longitude'] as double;
-        final radius = _orgData!['geofencing_radius'] as double;
-
-        final distance = Geolocator.distanceBetween(
-          position.latitude,
-          position.longitude,
-          orgLat,
-          orgLng,
-        );
-
-        setState(() {
-          _distanceToOffice = distance;
-          _statusMessage = _isCheckedIn
-              ? 'Checked in (${_formatDuration(DateTime.now().difference(_checkInTime!))}'
-              : distance <= radius
-                  ? 'Within office area (${distance.toStringAsFixed(0)}m)'
-                  : 'Outside office area (${distance.toStringAsFixed(0)}m away)';
-        });
-
-        if (_isCheckedIn) {
-          _service.invoke('updateLocation', {
-            'latitude': position.latitude,
-            'longitude': position.longitude,
-            'orgId': widget.orgId,
-            'userId': widget.userId,
-            'radius': radius,
-            'orgLat': orgLat,
-            'orgLng': orgLng,
-            'isCheckedIn': _isCheckedIn,
-          });
-
-          if (distance > radius) {
-            await _performCheckOut();
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('Location update failed: $e');
-    }
-  }
-
-  Future<void> _performCheckIn() async {
-    if (!mounted || _lastPosition == null || _orgData == null) return;
-
-    final radius = _orgData!['geofencing_radius'] as double;
-    if (_distanceToOffice > radius) {
-      _showError(
-          'You must be within ${radius.toStringAsFixed(0)}m of the office to check in');
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      final now = DateTime.now().toUtc();
-
-      await _supabase.from('attendance').insert({
-        'user_id': widget.userId,
-        'org_id': widget.orgId,
-        'check_in_time': now.toIso8601String(),
-        'check_in_location':
-            'POINT(${_lastPosition!.longitude} ${_lastPosition!.latitude})',
-        'geofence_radius': radius,
-      });
-
-      if (mounted) {
-        setState(() {
-          _isCheckedIn = true;
-          _checkInTime = now;
-          _statusMessage = 'Checked in at ${DateFormat.Hm().format(now)}';
-        });
-
-        await _service.startService();
-        _isBackgroundServiceRunning = true;
-        _startLocationTracking();
-
-        _showSnackBar('Successfully checked in');
-      }
-    } catch (e) {
-      _showError('Check-in failed: ${e.toString()}');
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  Future<void> _performCheckOut() async {
-    if (!mounted || _lastPosition == null) return;
-
-    setState(() => _isLoading = true);
-
-    try {
-      final now = DateTime.now().toUtc();
-      final today = DateTime(now.year, now.month, now.day);
-
-      final response = await _supabase
-          .from('attendance')
-          .select()
-          .eq('user_id', widget.userId)
-          .gte('created_at', today.toIso8601String())
-          .filter('check_out_time', 'is', null)
-          .single();
-
-      final checkInTime = DateTime.parse(response['check_in_time']);
-      final hours = now.difference(checkInTime).inMinutes / 60.0;
-
-      await _supabase.from('attendance').update({
-        'check_out_time': now.toIso8601String(),
-        'check_out_location':
-            'POINT(${_lastPosition!.longitude} ${_lastPosition!.latitude})',
-        'total_hours': hours,
-      }).eq('id', response['id']);
-
-      if (mounted) {
-        setState(() {
-          _isCheckedIn = false;
-          _checkInTime = null;
-          _statusMessage =
-              'Checked out. Worked ${hours.toStringAsFixed(2)} hours';
-        });
-
-        _service.invoke('stopService');
-        _isBackgroundServiceRunning = false;
-        _startLocationTracking();
-
-        _showSnackBar('Successfully checked out');
-      }
-    } catch (e) {
-      _showError('Check-out failed: ${e.toString()}');
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  String _formatDuration(Duration duration) {
-    final hours = duration.inHours;
-    final minutes = duration.inMinutes.remainder(60);
-    return '${hours}h ${minutes}m';
-  }
-
   void _showSnackBar(String message) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
       );
+    }
+  }
+
+  void _handleError(String contextMessage, dynamic error) {
+    final errorMessage = '$contextMessage: ${error.toString()}';
+    debugPrint(errorMessage);
+    if (mounted) {
+      setState(() => _statusMessage = errorMessage);
+      _showSnackBar(errorMessage);
     }
   }
 
@@ -499,7 +552,7 @@ class _GeoAttendancePageState extends State<GeoAttendancePage> {
       return Center(child: Text(_statusMessage));
     }
 
-    final radius = _orgData!['geofencing_radius'] as double;
+    final radius = _orgData!['geofencing_radius'];
     final progressValue = _distanceToOffice / radius;
 
     return Padding(
