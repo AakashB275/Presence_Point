@@ -32,42 +32,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
     String password = _passwordController.text.trim();
 
     try {
-      // Step 1: Create the authentication account
+      // Step 1: Create authentication account (Supabase handles hashing)
       final AuthResponse response = await supabase.auth.signUp(
         email: email,
         password: password,
-        data: {'username': username}, // Basic data in auth metadata
+        data: {'username': username},
       );
 
       if (response.user != null) {
-        try {
-          // Step 2: Insert user data into your existing table
-          // Using a separate try-catch for better error isolation
-          await _insertUserData(
-            authUser: response.user!,
-            username: username,
-            email: email,
-            password: password,
-          );
+        // Step 2: Insert minimal user data into your table
+        await _insertUserData(
+          authUserId: response.user!.id,
+          username: username,
+          email: email,
+        );
 
-          await _showMessageDialog(
-              "Registration successful. Please verify your email before logging in.");
-          if (mounted) {
-            Navigator.pushReplacementNamed(context, "/login");
-          }
-        } catch (dbError) {
-          // Handle database insertion errors specifically
-          print("Database error: $dbError");
-          await _showMessageDialog(
-              "User created but profile data couldn't be stored: ${dbError.toString()}");
+        await _showMessageDialog(
+            "Registration successful! Please check your email for verification.");
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, "/login");
         }
       }
     } on AuthException catch (e) {
-      String errorMessage = e.message;
-      await _showMessageDialog("Auth error: $errorMessage");
+      await _showMessageDialog("Registration failed: ${e.message}");
     } catch (e) {
-      print("Unexpected error: $e");
-      await _showMessageDialog("An unexpected error occurred: ${e.toString()}");
+      await _showMessageDialog("An unexpected error occurred");
     } finally {
       if (mounted) {
         setState(() {
@@ -77,33 +66,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  // Function to insert user data into your Supabase table
   Future<void> _insertUserData({
-    required User authUser,
+    required String authUserId,
     required String username,
     required String email,
-    required String password,
   }) async {
-    // Debug print to verify data
-    print("Attempting to insert user data for ${authUser.id}");
-    print("Name: $username, Email: $email");
-
     try {
-      // Insert into 'users' table - adjust table name if needed
-      final response = await supabase.from('users').insert({
-        // 'id': authUser.id, // Uncomment if you want to use auth ID and your table accepts UUID
+      await supabase.from('users').insert({
+        'auth_user_id': authUserId,
         'name': username,
         'email': email,
-        'password': password,
         'role': "Employee",
         'created_at': DateTime.now().toIso8601String(),
-      }).select();
-
-      print("Insert successful: $response");
+      });
     } catch (e) {
-      print("Database insertion error: $e");
-      // Rethrow to handle in the calling function
-      throw Exception('Failed to create user profile: ${e.toString()}');
+      print("Error inserting user data: $e");
+      throw Exception('Failed to create user profile');
     }
   }
 

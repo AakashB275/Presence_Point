@@ -59,9 +59,9 @@ class UserState extends ChangeNotifier {
   Future<String?> _fetchUserRole(String orgId) async {
     try {
       final response = await supabase
-          .from('user_roles')
+          .from('users')
           .select('role')
-          .eq('user_id', supabase.auth.currentUser!.id)
+          .eq('auth_user_id', supabase.auth.currentUser!.id)
           .eq('org_id', orgId)
           .maybeSingle();
 
@@ -76,7 +76,7 @@ class UserState extends ChangeNotifier {
   Future<Map<String, dynamic>?> verifyOrganization(String orgCode) async {
     try {
       final response = await supabase
-          .from('organizations') // Make sure this matches your table name
+          .from('organization') // Make sure this matches your table name
           .select('id, name, org_code')
           .eq('org_code', orgCode)
           .maybeSingle();

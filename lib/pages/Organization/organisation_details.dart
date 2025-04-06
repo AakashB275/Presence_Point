@@ -22,6 +22,7 @@ class _OrganisationDetailsState extends State<OrganisationDetails> {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   bool _hasLocation = false;
+  bool _isCheckingLocation = false;
   double? _latitude;
   double? _longitude;
   double? _geofencingRadius;
@@ -56,6 +57,7 @@ class _OrganisationDetailsState extends State<OrganisationDetails> {
   }
 
   Future<void> _checkForLocation() async {
+    if (mounted) setState(() => _isCheckingLocation = true);
     try {
       final prefs = await SharedPreferences.getInstance();
       final latitude = prefs.getDouble('org_latitude');
@@ -72,23 +74,44 @@ class _OrganisationDetailsState extends State<OrganisationDetails> {
       }
     } catch (e) {
       _showErrorToast("Error loading location: ${e.toString()}");
+    } finally {
+      if (mounted) setState(() => _isCheckingLocation = false);
     }
   }
 
   Future<void> _storeOrganizationData() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_latitude == null || _longitude == null) {
+      _showErrorToast("Please set a location for your organization");
+      return;
+    }
 
     try {
       setState(() => _isLoading = true);
       final currentUser = supabase.auth.currentUser;
       if (currentUser == null) throw Exception("User not authenticated");
 
-      // Create organization
+      // 1. Verify user exists in public.users table
+      final userExists = await supabase
+          .from('users')
+          .select()
+          .eq('auth_user_id', currentUser.id)
+          .maybeSingle();
+
+      if (userExists == null) {
+        throw Exception(
+            "User account not found. Please complete your profile first.");
+      }
+
+      // 2. Validate organization name
+      await _validateOrganizationName(_orgNameController.text.trim());
+
+      // 3. Create organization using auth.user_id directly
       final orgData = {
         'org_name': _orgNameController.text.trim(),
-        'createdby': currentUser.id,
+        'createdby': currentUser.id, // Using auth.user_id directly
         'totaluser': 1,
-        'org_code': _generateNumericOrgCode(),
+        'org_code': await _generateUniqueOrgCode(),
         'latitude': _latitude,
         'longitude': _longitude,
         'geofencing_radius': _geofencingRadius ?? 200.0,
@@ -100,12 +123,11 @@ class _OrganisationDetailsState extends State<OrganisationDetails> {
           .select('org_id')
           .single();
 
-      // Assign admin role to creator
-      await supabase.from('user_roles').insert({
-        'user_id': currentUser.id,
+      // 4. Update user's org_id and role
+      await supabase.from('users').update({
         'org_id': response['org_id'],
         'role': 'admin',
-      });
+      }).eq('auth_user_id', currentUser.id);
 
       await _clearLocationPreferences();
 
@@ -115,8 +137,7 @@ class _OrganisationDetailsState extends State<OrganisationDetails> {
         orgCode: orgData['org_code'].toString(),
       );
 
-      _showSuccessToast(
-          "Organization created successfully! You are now an admin.");
+      _showSuccessToast("Organization created successfully!");
       _navigateToHome();
     } catch (e) {
       _handleError("Failed to create organization: ${e.toString()}");
@@ -125,28 +146,44 @@ class _OrganisationDetailsState extends State<OrganisationDetails> {
     }
   }
 
-// Updated to generate numeric-only codes
+  Future<String> _generateUniqueOrgCode() async {
+    String code;
+    bool isUnique;
+
+    do {
+      code = _generateNumericOrgCode();
+      final existing = await supabase
+          .from('organization')
+          .select('org_code')
+          .eq('org_code', code)
+          .maybeSingle();
+      isUnique = existing == null;
+    } while (!isUnique);
+
+    return code;
+  }
+
   String _generateNumericOrgCode() {
     final now = DateTime.now();
     final random = _random.nextInt(900000) + 100000; // 6-digit random number
     return '${now.millisecondsSinceEpoch % 1000}$random'; // Ensures numeric-only
   }
 
-  // Future<void> _validateOrganizationName(String orgName) async {
-  //   try {
-  //     final existingOrg = await supabase
-  //         .from('organization')
-  //         .select('org_name')
-  //         .eq('org_name', orgName)
-  //         .maybeSingle();
+  Future<void> _validateOrganizationName(String orgName) async {
+    try {
+      final existingOrg = await supabase
+          .from('organization')
+          .select('org_name')
+          .eq('org_name', orgName)
+          .maybeSingle();
 
-  //     if (existingOrg != null) {
-  //       throw Exception("Organization name '$orgName' already exists");
-  //     }
-  //   } on PostgrestException catch (e) {
-  //     throw Exception("Failed to validate organization name: ${e.message}");
-  //   }
-  // }
+      if (existingOrg != null) {
+        throw Exception("Organization name '$orgName' already exists");
+      }
+    } on PostgrestException catch (e) {
+      throw Exception("Failed to validate organization name: ${e.message}");
+    }
+  }
 
   Future<void> _clearLocationPreferences() async {
     final prefs = await SharedPreferences.getInstance();
@@ -162,21 +199,6 @@ class _OrganisationDetailsState extends State<OrganisationDetails> {
       Navigator.pushReplacementNamed(context, "/home");
     }
   }
-
-  // void _handleDatabaseError(PostgrestException e) {
-  //   String userMessage = "Database error occurred";
-
-  //   if (e.code == '23505') {
-  //     userMessage = "Organization code already exists. Please try again.";
-  //   } else if (e.code == '42501') {
-  //     userMessage = "Permission denied. Contact your administrator.";
-  //   } else {
-  //     userMessage = "Database operation failed: ${e.message}";
-  //   }
-
-  //   _showErrorToast(userMessage);
-  //   debugPrint("Database error: ${e.toString()}");
-  // }
 
   void _handleError(String message) {
     _showErrorToast(message);
@@ -241,6 +263,9 @@ class _OrganisationDetailsState extends State<OrganisationDetails> {
                     if (value.length < 3) {
                       return 'Name must be at least 3 characters';
                     }
+                    if (value.length > 255) {
+                      return 'Name must be less than 255 characters';
+                    }
                     return null;
                   },
                 ),
@@ -301,69 +326,51 @@ class _OrganisationDetailsState extends State<OrganisationDetails> {
   }
 
   Widget _buildLocationCard() {
-    return _hasLocation
-        ? Card(
-            color: Colors.green.shade50,
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.location_on, color: Colors.green),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Location Set',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+    return Card(
+      color: _hasLocation ? Colors.green.shade50 : Colors.orange.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  _hasLocation ? Icons.location_on : Icons.location_off,
+                  color: _hasLocation ? Colors.green : Colors.orange,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _hasLocation ? 'Location Set' : 'Location Required',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 8),
-                  Text('Latitude: ${_latitude?.toStringAsFixed(6)}'),
-                  Text('Longitude: ${_longitude?.toStringAsFixed(6)}'),
-                  Text(
-                      'Geofencing Radius: ${_geofencingRadius?.toStringAsFixed(1)} meters'),
-                  TextButton.icon(
-                    icon: const Icon(Icons.edit_location),
-                    label: const Text('Change Location'),
-                    onPressed: () {
-                      Navigator.pushReplacementNamed(
-                          context, '/organizationlocation');
-                    },
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          )
-        : Card(
-            color: Colors.orange.shade50,
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.location_off, color: Colors.orange),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'No Location Set',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  const Text('Set a location for your organization.'),
-                ],
-              ),
+            const SizedBox(height: 8),
+            if (_isCheckingLocation)
+              const LinearProgressIndicator()
+            else if (_hasLocation) ...[
+              Text('Latitude: ${_latitude?.toStringAsFixed(6)}'),
+              Text('Longitude: ${_longitude?.toStringAsFixed(6)}'),
+              Text(
+                  'Geofencing Radius: ${_geofencingRadius?.toStringAsFixed(1)} meters'),
+            ] else ...[
+              const Text('Organization location is required for geofencing.'),
+            ],
+            TextButton.icon(
+              icon: const Icon(Icons.edit_location),
+              label: Text(_hasLocation ? 'Change Location' : 'Set Location'),
+              onPressed: () {
+                Navigator.pushReplacementNamed(
+                    context, '/organizationlocation');
+              },
             ),
-          );
+          ],
+        ),
+      ),
+    );
   }
 }

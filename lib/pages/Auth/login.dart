@@ -58,8 +58,7 @@ class _LoginPageState extends State<LoginPage> {
     } on AuthException catch (e) {
       await _showMessageDialog("Login failed: ${e.message}");
     } catch (e) {
-      await _showMessageDialog(
-          "An unexpected error occurred. Please try again.");
+      await _showMessageDialog("An unexpected error occurred");
     } finally {
       if (mounted) {
         setState(() {
@@ -214,7 +213,7 @@ class _LoginPageState extends State<LoginPage> {
                   const SizedBox(height: 20),
                   GestureDetector(
                     onTap: () {
-                      // Add your forgot password logic here
+                      // Implement forgot password functionality
                       // Navigator.push(context, MaterialPageRoute(
                       //   builder: (context) => ForgotPasswordScreen()));
                     },
