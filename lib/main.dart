@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:presence_point_2/pages/Features/notices.dart';
 import 'package:presence_point_2/pages/admin_home_page.dart';
 import 'package:presence_point_2/pages/employee_home_page.dart';
 import 'package:provider/provider.dart';
@@ -55,6 +56,7 @@ class MyApp extends StatelessWidget {
           '/neworganisation': (context) => NewOrganisation(),
           '/profile': (context) => ProfileScreen(),
           '/geofencing': (context) => GeoAttendancePage(),
+          '/notices': (context) => NoticesPage(),
         },
       ),
     );
