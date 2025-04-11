@@ -5,7 +5,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:intl/intl.dart';
 
 class GeoAttendancePage extends StatefulWidget {
   const GeoAttendancePage({Key? key}) : super(key: key);
@@ -133,16 +132,6 @@ class _GeoAttendancePageState extends State<GeoAttendancePage> {
     setState(() => _isLoading = true);
     try {
       final now = DateTime.now().toUtc();
-      final response = await _supabase
-          .from('attendance')
-          .insert({
-            'user_id': _supabase.auth.currentUser!.id,
-            'org_id': _orgData!['org_id'],
-            'check_in_time': now.toIso8601String(),
-            'check_in_location': _toPostgisPoint(_currentPosition!),
-          })
-          .select()
-          .single();
 
       setState(() {
         _isCheckedIn = true;

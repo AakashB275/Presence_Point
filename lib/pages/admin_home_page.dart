@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../widgets/CustomAppBar.dart';
 import '../widgets/CustomDrawer.dart';
@@ -25,75 +26,109 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      key: _scaffoldKey,
-      appBar: CustomAppBar(
-        title: "Admin Dashboard",
-        scaffoldKey: _scaffoldKey,
-      ),
-      drawer: CustomDrawer(),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "Admin Dashboard",
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.indigo,
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) async {
+        if (didPop) return;
+
+        // Show confirmation dialog
+        final shouldPop = await showDialog<bool>(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              title: Text('Exit App?'),
+              content: Text('Are you sure you want to exit the app?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text('No'),
                 ),
-              ),
-              const SizedBox(height: 16),
-              _buildStatsRow(),
-              const SizedBox(height: 24),
-              const Text(
-                "Quick Actions",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey,
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: Text('Yes'),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: GridView.count(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 16,
-                  crossAxisSpacing: 16,
-                  childAspectRatio: 1.2,
-                  children: [
-                    _buildActionCard(
-                      title: "Manage Team",
-                      icon: Icons.people_alt,
-                      color: Colors.indigo,
-                      onTap: () => Navigator.pushNamed(context, '/manage-team'),
-                    ),
-                    _buildActionCard(
-                      title: "Attendance Reports",
-                      icon: Icons.analytics,
-                      color: Colors.green,
-                      onTap: () => Navigator.pushNamed(context, '/reports'),
-                    ),
-                    _buildActionCard(
-                      title: "Geofence Settings",
-                      icon: Icons.location_pin,
-                      color: Colors.orange,
-                      onTap: () => Navigator.pushNamed(context, '/geofencing'),
-                    ),
-                    _buildActionCard(
-                      title: "System Settings",
-                      icon: Icons.settings,
-                      color: Colors.purple,
-                      onTap: () => Navigator.pushNamed(context, '/settings'),
-                    ),
-                  ],
+              ],
+            );
+          },
+        );
+
+        if (shouldPop ?? false) {
+          // This will exit the app
+          SystemNavigator.pop();
+        }
+      },
+      child: Scaffold(
+        key: _scaffoldKey,
+        appBar: CustomAppBar(
+          title: "Admin Dashboard",
+          scaffoldKey: _scaffoldKey,
+        ),
+        drawer: CustomDrawer(),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Admin Dashboard",
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.indigo,
+                  ),
                 ),
-              ),
-              _buildSignOutButton(),
-            ],
+                const SizedBox(height: 16),
+                _buildStatsRow(),
+                const SizedBox(height: 24),
+                const Text(
+                  "Quick Actions",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: GridView.count(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 16,
+                    crossAxisSpacing: 16,
+                    childAspectRatio: 1.2,
+                    children: [
+                      _buildActionCard(
+                        title: "Manage Team",
+                        icon: Icons.people_alt,
+                        color: Colors.indigo,
+                        onTap: () =>
+                            Navigator.pushNamed(context, '/manage-team'),
+                      ),
+                      _buildActionCard(
+                        title: "Attendance Reports",
+                        icon: Icons.analytics,
+                        color: Colors.green,
+                        onTap: () => Navigator.pushNamed(context, '/reports'),
+                      ),
+                      _buildActionCard(
+                        title: "Geofence Settings",
+                        icon: Icons.location_pin,
+                        color: Colors.orange,
+                        onTap: () =>
+                            Navigator.pushNamed(context, '/geofencing'),
+                      ),
+                      _buildActionCard(
+                        title: "System Settings",
+                        icon: Icons.settings,
+                        color: Colors.purple,
+                        onTap: () => Navigator.pushNamed(context, '/settings'),
+                      ),
+                    ],
+                  ),
+                ),
+                _buildSignOutButton(),
+              ],
+            ),
           ),
         ),
       ),

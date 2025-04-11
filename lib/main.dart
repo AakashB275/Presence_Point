@@ -26,7 +26,7 @@ Future<void> main() async {
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNlaml6b2JpZ3FmZml6cnlxc2h5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMxODQ0NTEsImV4cCI6MjA1ODc2MDQ1MX0.M-rsy0lDi9EbZOpRoCiDnrpH11yuX2bYCNeW4EadJMo',
   );
 
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -40,23 +40,38 @@ class MyApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         initialRoute: '/',
         routes: {
-          '/': (context) => Wrapper(),
+          '/': (context) => const Wrapper(),
           '/home': (context) {
-            final userState = Provider.of<UserState>(context);
-            if (userState.isAdmin) return const AdminHomePage();
-            return const EmployeeHomePage();
+            final userState = Provider.of<UserState>(context, listen: false);
+            return userState.isAdmin
+                ? const AdminHomePage()
+                : const EmployeeHomePage();
           },
           '/analytics': (context) => AnalyticsPage(),
           '/login': (context) => LoginPage(),
           '/register': (context) => RegisterScreen(),
-          '/organisationdetails': (context) => OrganisationDetails(),
+          '/organisationdetails': (context) => const OrganisationDetails(),
           '/leave': (context) => LeavesScreen(),
           '/usercheckin': (context) => UserCheckin(),
           '/organizationlocation': (context) => OrganizationLocationScreen(),
-          '/neworganisation': (context) => NewOrganisation(),
+          '/neworganisation': (context) => const NewOrganisation(),
           '/profile': (context) => ProfileScreen(),
           '/geofencing': (context) => GeoAttendancePage(),
           '/notices': (context) => NoticesPage(),
+        },
+        onGenerateRoute: (settings) {
+          // Handle 404 or custom transitions
+          return MaterialPageRoute(
+            builder: (context) => Scaffold(
+              appBar: AppBar(title: const Text('Page Not Found')),
+              body: Center(
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pushNamed(context, '/'),
+                  child: const Text('Go Home'),
+                ),
+              ),
+            ),
+          );
         },
       ),
     );

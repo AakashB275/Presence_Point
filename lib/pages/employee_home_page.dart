@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../widgets/CustomAppBar.dart';
 import '../widgets/CustomDrawer.dart';
@@ -23,42 +24,74 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      key: _scaffoldKey,
-      appBar: CustomAppBar(
-        title: "Employee Portal",
-        scaffoldKey: _scaffoldKey,
-      ),
-      drawer: CustomDrawer(),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              const SizedBox(height: 20),
-              Text(
-                "Welcome Back,",
-                style: TextStyle(
-                  fontSize: 24,
-                  color: Colors.grey[600],
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) async {
+        if (didPop) return;
+
+        // Show confirmation dialog
+        final shouldPop = await showDialog<bool>(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              title: Text('Exit App?'),
+              content: Text('Are you sure you want to exit the app?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text('No'),
                 ),
-              ),
-              Text(
-                "John Doe", // Replace with actual user name
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: Text('Yes'),
                 ),
-              ),
-              const SizedBox(height: 40),
-              _buildAttendanceButton(),
-              const SizedBox(height: 30),
-              _buildAttendanceStatus(),
-              const SizedBox(height: 30),
-              _buildAttendanceHistory(),
-              const Spacer(),
-              _buildSignOutButton(),
-            ],
+              ],
+            );
+          },
+        );
+
+        if (shouldPop ?? false) {
+          // This will exit the app
+          SystemNavigator.pop();
+        }
+      },
+      child: Scaffold(
+        key: _scaffoldKey,
+        appBar: CustomAppBar(
+          title: "Employee Portal",
+          scaffoldKey: _scaffoldKey,
+        ),
+        drawer: CustomDrawer(),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                const SizedBox(height: 20),
+                Text(
+                  "Welcome Back,",
+                  style: TextStyle(
+                    fontSize: 24,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                Text(
+                  "John Doe", // Replace with actual user name
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 40),
+                _buildAttendanceButton(),
+                const SizedBox(height: 30),
+                _buildAttendanceStatus(),
+                const SizedBox(height: 30),
+                _buildAttendanceHistory(),
+                const Spacer(),
+                _buildSignOutButton(),
+              ],
+            ),
           ),
         ),
       ),

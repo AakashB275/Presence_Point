@@ -11,35 +11,42 @@ class NoticesPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Company Notices'),
-          bottom: const TabBar(
-            tabs: [
-              Tab(text: 'All Notices'),
-              Tab(text: 'Important'),
+      child: PopScope(
+        canPop: false, // Set to false to manually handle popping
+        onPopInvoked: (didPop) {
+          if (didPop) return;
+          Navigator.of(context).pop();
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            title: const Text('Company Notices'),
+            bottom: const TabBar(
+              tabs: [
+                Tab(text: 'All Notices'),
+                Tab(text: 'Important'),
+              ],
+            ),
+            actions: [
+              FutureBuilder<bool>(
+                future: noticeService.isAdmin(),
+                builder: (context, snapshot) {
+                  if (snapshot.data == true) {
+                    return IconButton(
+                      icon: const Icon(Icons.add),
+                      onPressed: () => _showCreateNoticeDialog(context),
+                    );
+                  }
+                  return const SizedBox();
+                },
+              ),
             ],
           ),
-          actions: [
-            FutureBuilder<bool>(
-              future: noticeService.isAdmin(),
-              builder: (context, snapshot) {
-                if (snapshot.data == true) {
-                  return IconButton(
-                    icon: const Icon(Icons.add),
-                    onPressed: () => _showCreateNoticeDialog(context),
-                  );
-                }
-                return const SizedBox();
-              },
-            ),
-          ],
-        ),
-        body: TabBarView(
-          children: [
-            _buildNoticesList(context),
-            _buildImportantNoticesList(context),
-          ],
+          body: TabBarView(
+            children: [
+              _buildNoticesList(context),
+              _buildImportantNoticesList(context),
+            ],
+          ),
         ),
       ),
     );
