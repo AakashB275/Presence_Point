@@ -60,7 +60,6 @@ class MyApp extends StatelessWidget {
           '/notices': (context) => NoticesPage(),
         },
         onGenerateRoute: (settings) {
-          // Handle 404 or custom transitions
           return MaterialPageRoute(
             builder: (context) => Scaffold(
               appBar: AppBar(title: const Text('Page Not Found')),

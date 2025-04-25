@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -24,7 +26,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _profileFuture = _fetchUserProfile();
+    _initializeProfile();
+  }
+
+  void _initializeProfile() {
+    _profileFuture = _fetchUserProfile().catchError((error) {
+      debugPrint('Profile loading error: $error');
+      throw error; // Re-throw to let FutureBuilder handle it
+    });
+    _nameController = TextEditingController();
+    _emailController = TextEditingController();
   }
 
   Future<Map<String, dynamic>> _fetchUserProfile() async {
@@ -32,14 +43,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) throw Exception('User not authenticated');
 
-      final response = await supabase.from('user').select('''
+      final response = await supabase
+          .from('users') // Changed from 'user' to 'users'
+          .select('''
             name, 
             email,
             created_at,
             organization:org_id (org_name, org_code)
-          ''').eq('id', userId).single().timeout(const Duration(seconds: 10));
+          ''')
+          .eq('id', userId)
+          .single()
+          .timeout(const Duration(seconds: 10));
 
       return response;
+    } on PostgrestException catch (e) {
+      throw Exception('Database error: ${e.message}');
+    } on TimeoutException {
+      throw Exception('Request timed out');
     } catch (e) {
       throw Exception('Failed to load profile: ${e.toString()}');
     }
@@ -48,9 +68,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _updateProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isEditing = false);
     try {
-      await supabase.from('user').update({
+      setState(() => _isEditing = false);
+
+      await supabase.from('users').update({
         'name': _nameController.text,
       }).eq('id', supabase.auth.currentUser!.id);
 
@@ -67,44 +88,66 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error updating profile: ${e.toString()}')),
       );
+      setState(() => _isEditing = true); // Return to edit mode on failure
     }
   }
 
   @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      key: _scaffoldKey,
-      appBar: CustomAppBar(title: "My Profile", scaffoldKey: _scaffoldKey),
-      drawer: CustomDrawer(),
-      body: FutureBuilder<Map<String, dynamic>>(
-        future: _profileFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+    return WillPopScope(
+      onWillPop: () async {
+        if (_isEditing) {
+          setState(() => _isEditing = false);
+          return false;
+        }
+        return true;
+      },
+      child: Scaffold(
+        key: _scaffoldKey,
+        appBar: CustomAppBar(title: "My Profile", scaffoldKey: _scaffoldKey),
+        drawer: CustomDrawer(),
+        body: FutureBuilder<Map<String, dynamic>>(
+          future: _profileFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          if (snapshot.hasError || !snapshot.hasData) {
-            return _buildErrorState(snapshot.error?.toString());
-          }
+            if (snapshot.hasError) {
+              return _buildErrorState(snapshot.error as String?);
+            }
 
-          final profile = snapshot.data!;
-          _initializeControllers(profile);
+            if (!snapshot.hasData) {
+              return _buildErrorState(
+                  Exception('No profile data found') as String?);
+            }
 
-          return Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                _buildProfileHeader(profile),
-                const SizedBox(height: 24),
-                Expanded(
-                  child: _isEditing
-                      ? _buildEditForm()
-                      : _buildProfileView(profile),
-                ),
-              ],
-            ),
-          );
-        },
+            final profile = snapshot.data!;
+            _initializeControllers(profile);
+
+            return Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  _buildProfileHeader(profile),
+                  const SizedBox(height: 24),
+                  Expanded(
+                    child: _isEditing
+                        ? _buildEditForm()
+                        : _buildProfileView(profile),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }

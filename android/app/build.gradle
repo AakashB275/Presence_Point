@@ -41,6 +41,9 @@ android {
 }
 dependencies {
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:1.1.5'
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22" // or latest
+    implementation 'androidx.activity:activity-ktx:1.7.2' // Required for OnBackPressedDispatcher
+    implementation 'androidx.fragment:fragment-ktx:1.6.1' // Optional but recommended for FragmentActivity
     // Any other dependencies your app might have
 }
 

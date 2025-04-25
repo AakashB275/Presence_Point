@@ -47,6 +47,9 @@ class UserState extends ChangeNotifier {
         if (isLoggedIn && _currentOrgId != null) {
           _userRole = await _fetchUserRole(_currentOrgId!);
         }
+      } else if (isLoggedIn) {
+        // Set default role as 'employee' for logged-in users without an org
+        _userRole = 'employee';
       }
     } catch (e) {
       debugPrint("UserState initialization error: $e");
@@ -72,7 +75,13 @@ class UserState extends ChangeNotifier {
     }
   }
 
-// In your UserState class
+  // Add a method to handle user registration
+  Future<void> handleUserRegistration() async {
+    // Set default role to employee for newly registered users
+    _userRole = 'employee';
+    notifyListeners();
+  }
+
   Future<Map<String, dynamic>?> verifyOrganization(String orgCode) async {
     try {
       final response = await supabase
@@ -92,6 +101,40 @@ class UserState extends ChangeNotifier {
     } catch (e) {
       debugPrint("Organization verification error: $e");
       return null;
+    }
+  }
+
+  Future<void> createOrganization({
+    required String orgName,
+    required String orgCode,
+  }) async {
+    try {
+      final userId = supabase.auth.currentUser!.id;
+
+      // Create new organization in Supabase
+      final orgData = await supabase
+          .from('organization')
+          .insert({
+            'name': orgName,
+            'org_code': orgCode,
+            'created_by': userId,
+            'created_at': DateTime.now().toIso8601String(),
+          })
+          .select()
+          .single();
+
+      // Join the organization as admin
+      await joinOrganization(
+        orgId: orgData['id'],
+        orgName: orgName,
+        orgCode: orgCode,
+        role: 'admin', // Creator becomes admin
+      );
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint("Error creating organization: $e");
+      rethrow;
     }
   }
 
@@ -148,7 +191,7 @@ class UserState extends ChangeNotifier {
       _currentOrgName = null;
       _currentOrgCode = null;
       _hasJoinedOrg = false;
-      _userRole = null;
+      _userRole = 'employee'; // Reset to default employee role
 
       notifyListeners();
     } catch (e) {
