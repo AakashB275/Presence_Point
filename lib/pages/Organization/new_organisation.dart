@@ -30,12 +30,28 @@ class _NewOrganisationState extends State<NewOrganisation> {
           .verifyOrganization(_orgCodeController.text.trim());
 
       if (orgData != null) {
-        await Provider.of<UserState>(context, listen: false).joinOrganization(
-          orgId: orgData['org_id'].toString(),
-          orgName: orgData['org_name'].toString(),
-          orgCode: orgData['org_code'].toString(),
-        );
-        Navigator.pushReplacementNamed(context, "/home");
+        // ✅ Fix: Correct the field based on your database column
+        final String orgId =
+            orgData['org_id']?.toString() ?? ''; // Use 'org_id', not 'id'
+
+        if (orgId.isNotEmpty) {
+          await Provider.of<UserState>(context, listen: false)
+              .createJoinRequest(
+            orgId: orgId,
+          );
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text("Join request sent! Awaiting admin approval.")),
+          );
+
+          Navigator.pushReplacementNamed(context, "/home");
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text("Invalid organization data received.")),
+          );
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Organization not found")),
@@ -43,7 +59,7 @@ class _NewOrganisationState extends State<NewOrganisation> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error joining organization: ${e.toString()}")),
+        SnackBar(content: Text("Error: ${e.toString()}")),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -68,8 +84,10 @@ class _NewOrganisationState extends State<NewOrganisation> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 20),
-              const Text("Create Organization",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text(
+                "Create Organization",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
                 value: selectedOrgType,
@@ -98,8 +116,10 @@ class _NewOrganisationState extends State<NewOrganisation> {
                 child: const Text("Create Organization"),
               ),
               const SizedBox(height: 30),
-              const Text("Join Organization",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text(
+                "Join Organization",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 8),
               TextField(
                 controller: _orgCodeController,

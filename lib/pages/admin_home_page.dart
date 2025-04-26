@@ -101,8 +101,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                         title: "Manage Team",
                         icon: Icons.people_alt,
                         color: Colors.indigo,
-                        onTap: () =>
-                            Navigator.pushNamed(context, '/manage-team'),
+                        onTap: () => Navigator.pushNamed(context, '/team'),
                       ),
                       _buildActionCard(
                         title: "Attendance Reports",
