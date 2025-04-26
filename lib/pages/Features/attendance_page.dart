@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:presence_point_2/pages/admin_home_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
@@ -90,6 +91,16 @@ class _AttendancePageState extends State<AttendancePage> {
     }
   }
 
+  // Navigate to Admin/Employee page
+  void _navigateToAdminEmployeePage() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        // Replace AdminEmployeePage with your actual page class
+        builder: (context) => AdminHomePage(),
+      ),
+    );
+  }
+
   void _updateGeofenceCircles() {
     Set<Circle> circles = {};
 
@@ -174,110 +185,118 @@ class _AttendancePageState extends State<AttendancePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Attendance Tracker'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.history),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AttendanceHistoryPage(),
-                ),
-              );
-            },
+    return PopScope(
+        canPop: false,
+        onPopInvoked: (didPop) {
+          if (didPop) return;
+
+          // Navigate to employee/admin page on back button press
+          _navigateToAdminEmployeePage();
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            title: const Text('Attendance Tracker'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.history),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AttendanceHistoryPage(),
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                // Status card
-                Card(
-                  margin: const EdgeInsets.all(16.0),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          body: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Column(
+                  children: [
+                    // Status card
+                    Card(
+                      margin: const EdgeInsets.all(16.0),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
                           children: [
-                            const Text(
-                              'Current Status:',
-                              style: TextStyle(
-                                fontSize: 18.0,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Current Status:',
+                                  style: TextStyle(
+                                    fontSize: 18.0,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12.0,
+                                    vertical: 6.0,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: _geofencingService.isCheckedIn
+                                        ? Colors.green
+                                        : Colors.red,
+                                    borderRadius: BorderRadius.circular(20.0),
+                                  ),
+                                  child: Text(
+                                    _geofencingService.isCheckedIn
+                                        ? 'Checked In'
+                                        : 'Checked Out',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12.0,
-                                vertical: 6.0,
+                            const SizedBox(height: 16.0),
+                            if (_geofencingService.isCheckedIn) ...[
+                              const Text(
+                                'Time Worked Today:',
+                                style: TextStyle(fontSize: 16.0),
                               ),
-                              decoration: BoxDecoration(
-                                color: _geofencingService.isCheckedIn
-                                    ? Colors.green
-                                    : Colors.red,
-                                borderRadius: BorderRadius.circular(20.0),
-                              ),
-                              child: Text(
-                                _geofencingService.isCheckedIn
-                                    ? 'Checked In'
-                                    : 'Checked Out',
+                              const SizedBox(height: 8.0),
+                              Text(
+                                _formattedWorkDuration,
                                 style: const TextStyle(
-                                  color: Colors.white,
+                                  fontSize: 36.0,
                                   fontWeight: FontWeight.bold,
+                                  fontFamily: 'monospace',
                                 ),
                               ),
-                            ),
+                            ],
                           ],
                         ),
-                        const SizedBox(height: 16.0),
-                        if (_geofencingService.isCheckedIn) ...[
-                          const Text(
-                            'Time Worked Today:',
-                            style: TextStyle(fontSize: 16.0),
-                          ),
-                          const SizedBox(height: 8.0),
-                          Text(
-                            _formattedWorkDuration,
-                            style: const TextStyle(
-                              fontSize: 36.0,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'monospace',
-                            ),
-                          ),
-                        ],
-                      ],
+                      ),
                     ),
-                  ),
-                ),
 
-                // Map view
-                Expanded(
-                  child: GoogleMap(
-                    initialCameraPosition: _defaultLocation,
-                    myLocationEnabled: true,
-                    myLocationButtonEnabled: true,
-                    mapType: MapType.normal,
-                    zoomControlsEnabled: true,
-                    circles: _geofenceCircles,
-                    onMapCreated: (GoogleMapController controller) {
-                      _mapController.complete(controller);
-                      _animateToCurrentLocation();
-                    },
-                  ),
+                    // Map view
+                    Expanded(
+                      child: GoogleMap(
+                        initialCameraPosition: _defaultLocation,
+                        myLocationEnabled: true,
+                        myLocationButtonEnabled: true,
+                        mapType: MapType.normal,
+                        zoomControlsEnabled: true,
+                        circles: _geofenceCircles,
+                        onMapCreated: (GoogleMapController controller) {
+                          _mapController.complete(controller);
+                          _animateToCurrentLocation();
+                        },
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _getCurrentLocation,
-        child: const Icon(Icons.my_location),
-      ),
-    );
+          floatingActionButton: FloatingActionButton(
+            onPressed: _getCurrentLocation,
+            child: const Icon(Icons.my_location),
+          ),
+        ));
   }
 }
 

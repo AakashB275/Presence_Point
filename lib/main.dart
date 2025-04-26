@@ -29,6 +29,22 @@ Future<void> main() async {
   runApp(const MyApp());
 }
 
+class YourScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.pushReplacementNamed(context, '/home');
+        return false; // prevent default back action
+      },
+      child: Scaffold(
+        appBar: AppBar(title: Text('Your Screen')),
+        body: Center(child: Text('Screen Content')),
+      ),
+    );
+  }
+}
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 

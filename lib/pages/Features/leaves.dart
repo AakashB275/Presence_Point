@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:presence_point_2/pages/admin_home_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart' as uuid;
 
@@ -17,6 +18,15 @@ class _LeavesScreenState extends State<LeavesScreen> {
   void initState() {
     super.initState();
     _loadLeaveRequests();
+  }
+
+  void _navigateToAdminEmployeePage() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        // Replace AdminEmployeePage with your actual page class
+        builder: (context) => AdminHomePage(),
+      ),
+    );
   }
 
   Future<void> _loadLeaveRequests() async {
@@ -155,60 +165,69 @@ class _LeavesScreenState extends State<LeavesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('Leave Requests')),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'My Leave Requests',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  SizedBox(height: 16),
-                  Expanded(
-                    child: _leaveRequests.isEmpty
-                        ? Center(child: Text('No leave requests found'))
-                        : ListView.builder(
-                            itemCount: _leaveRequests.length,
-                            itemBuilder: (context, index) {
-                              final leave = _leaveRequests[index];
-                              final startDate =
-                                  DateTime.parse(leave['start_date']);
-                              final endDate = DateTime.parse(leave['end_date']);
+    return PopScope(
+        canPop: false,
+        onPopInvoked: (didPop) {
+          if (didPop) return;
 
-                              return Card(
-                                margin: EdgeInsets.only(bottom: 8),
-                                child: ListTile(
-                                  title: Text(
-                                    '${leave['leave_type'].toUpperCase()} Leave',
-                                    style:
-                                        TextStyle(fontWeight: FontWeight.bold),
-                                  ),
-                                  subtitle: Text(
-                                    'From: ${DateFormat('MMM d, yyyy').format(startDate)}\n'
-                                    'To: ${DateFormat('MMM d, yyyy').format(endDate)}\n'
-                                    'Status: ${leave['status'].toUpperCase()}',
-                                  ),
-                                  isThreeLine: true,
-                                  trailing: _getStatusIcon(leave['status']),
-                                ),
-                              );
-                            },
-                          ),
+          // Navigate to employee/admin page on back button press
+          _navigateToAdminEmployeePage();
+        },
+        child: Scaffold(
+          appBar: AppBar(title: Text('Leave Requests')),
+          body: _isLoading
+              ? Center(child: CircularProgressIndicator())
+              : Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'My Leave Requests',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      SizedBox(height: 16),
+                      Expanded(
+                        child: _leaveRequests.isEmpty
+                            ? Center(child: Text('No leave requests found'))
+                            : ListView.builder(
+                                itemCount: _leaveRequests.length,
+                                itemBuilder: (context, index) {
+                                  final leave = _leaveRequests[index];
+                                  final startDate =
+                                      DateTime.parse(leave['start_date']);
+                                  final endDate =
+                                      DateTime.parse(leave['end_date']);
+
+                                  return Card(
+                                    margin: EdgeInsets.only(bottom: 8),
+                                    child: ListTile(
+                                      title: Text(
+                                        '${leave['leave_type'].toUpperCase()} Leave',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                      subtitle: Text(
+                                        'From: ${DateFormat('MMM d, yyyy').format(startDate)}\n'
+                                        'To: ${DateFormat('MMM d, yyyy').format(endDate)}\n'
+                                        'Status: ${leave['status'].toUpperCase()}',
+                                      ),
+                                      isThreeLine: true,
+                                      trailing: _getStatusIcon(leave['status']),
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showApplyLeaveDialog,
-        child: Icon(Icons.add),
-        tooltip: 'Apply for Leave',
-      ),
-    );
+                ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: _showApplyLeaveDialog,
+            child: Icon(Icons.add),
+            tooltip: 'Apply for Leave',
+          ),
+        ));
   }
 
   Widget _getStatusIcon(String status) {

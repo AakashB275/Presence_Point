@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:presence_point_2/services/notices_service.dart';
+// Import your admin/employee page
+// import 'path/to/your/admin_employee_page.dart';
 
 class NoticesPage extends StatelessWidget {
   final NoticeService noticeService = NoticeService();
@@ -164,49 +166,83 @@ class NoticeDetailPage extends StatelessWidget {
 
   const NoticeDetailPage({Key? key, required this.notice}) : super(key: key);
 
+  // Add the missing function to navigate to admin/employee page
+  void _navigateToAdminEmployeePage(BuildContext context) {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        // Replace AdminEmployeePage with your actual page class
+        builder: (context) => AdminEmployeePage(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final hasAttachments =
         notice['attachments'] != null && notice['attachments'].isNotEmpty;
 
+    return PopScope(
+        canPop: false,
+        onPopInvoked: (didPop) {
+          if (didPop) return;
+
+          // Navigate to employee/admin page on back button press
+          _navigateToAdminEmployeePage(context);
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text(notice['title']),
+          ),
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'From: ${notice['author']?['name'] ?? 'Admin'}',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  DateFormat('MMM d, y - h:mm a').format(
+                    DateTime.parse(notice['created_at']).toLocal(),
+                  ),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const Divider(height: 24),
+                Text(notice['content']),
+                if (hasAttachments) ...[
+                  const Divider(height: 24),
+                  const Text('Attachments:',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  ...(notice['attachments'] as List).map((attachment) {
+                    return ListTile(
+                      leading: const Icon(Icons.attachment),
+                      title: Text(attachment['file_name']),
+                      onTap: () {
+                        // Implement opening the attachment
+                      },
+                    );
+                  }).toList(),
+                ],
+              ],
+            ),
+          ),
+        ));
+  }
+}
+
+// Placeholder class for the Admin/Employee page
+// Replace this with your actual Admin/Employee page implementation
+class AdminEmployeePage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(notice['title']),
+        title: Text('Admin/Employee Dashboard'),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'From: ${notice['author']?['name'] ?? 'Admin'}',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              DateFormat('MMM d, y - h:mm a').format(
-                DateTime.parse(notice['created_at']).toLocal(),
-              ),
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const Divider(height: 24),
-            Text(notice['content']),
-            if (hasAttachments) ...[
-              const Divider(height: 24),
-              const Text('Attachments:',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-              ...(notice['attachments'] as List).map((attachment) {
-                return ListTile(
-                  leading: const Icon(Icons.attachment),
-                  title: Text(attachment['file_name']),
-                  onTap: () {
-                    // Implement opening the attachment
-                  },
-                );
-              }).toList(),
-            ],
-          ],
-        ),
+      body: Center(
+        child: Text('Welcome to the Admin/Employee Dashboard'),
       ),
     );
   }

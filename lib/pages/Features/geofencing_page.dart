@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:presence_point_2/pages/admin_home_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:presence_point_2/widgets/CustomAppBar.dart';
@@ -179,6 +180,16 @@ class _GeofencingPageState extends State<GeofencingPage> {
     });
   }
 
+  // Navigate to Admin/Employee page
+  void _navigateToAdminEmployeePage() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        // Replace AdminEmployeePage with your actual page class
+        builder: (context) => AdminHomePage(),
+      ),
+    );
+  }
+
   void _checkGeofence(Position position) {
     if (_organization == null) return;
 
@@ -294,122 +305,131 @@ class _GeofencingPageState extends State<GeofencingPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: CustomAppBar(title: "Presence Point", scaffoldKey: _scaffoldKey),
-      drawer: CustomDrawer(),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Organization information
-                  if (_organization != null) ...[
-                    Text(
-                      _organization!.orgName,
-                      style: const TextStyle(
-                          fontSize: 24, fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                    ),
-                    Text(
-                      'Organization Code: ${_organization!.orgCode}',
-                      style: const TextStyle(fontSize: 16),
-                      textAlign: TextAlign.center,
-                    ),
-                    Text(
-                      'Geofence Radius: ${_organization!.geofencingRadius.toStringAsFixed(1)} meters',
-                      style: const TextStyle(fontSize: 16),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 20),
-                  ],
+    return PopScope(
+        canPop: false,
+        onPopInvoked: (didPop) {
+          if (didPop) return;
 
-                  // Status icon
-                  Icon(
-                    _isInGeofence ? Icons.location_on : Icons.location_off,
-                    size: 80,
-                    color: _isInGeofence ? Colors.green : Colors.red,
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Status text
-                  Text(
-                    _status,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 18),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Check-in status
-                  if (_isInGeofence) ...[
-                    const Text(
-                      'Checked in at:',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      _checkInTime != null
-                          ? DateFormat('yyyy-MM-dd HH:mm:ss')
-                              .format(_checkInTime!)
-                          : 'Not checked in yet',
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Duration in organization:',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      _formatDuration(),
-                      style: const TextStyle(
-                          fontSize: 24, fontWeight: FontWeight.bold),
-                    ),
-                  ],
-
-                  const SizedBox(height: 40),
-
-                  // Manual check buttons (for testing)
-                  ElevatedButton(
-                    onPressed: _currentPosition != null
-                        ? () => _checkGeofence(_currentPosition!)
-                        : null,
-                    child: const Text('Refresh Location Status'),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Manual check-in/check-out buttons (for backup)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          // Navigate to employee/admin page on back button press
+          _navigateToAdminEmployeePage();
+        },
+        child: Scaffold(
+          appBar:
+              CustomAppBar(title: "Presence Point", scaffoldKey: _scaffoldKey),
+          drawer: CustomDrawer(),
+          body: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      ElevatedButton(
-                        onPressed: _isInGeofence && _checkInTime == null
-                            ? _checkIn
-                            : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          disabledBackgroundColor: Colors.grey,
+                      // Organization information
+                      if (_organization != null) ...[
+                        Text(
+                          _organization!.orgName,
+                          style: const TextStyle(
+                              fontSize: 24, fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.center,
                         ),
-                        child: const Text('Manual Check-In'),
+                        Text(
+                          'Organization Code: ${_organization!.orgCode}',
+                          style: const TextStyle(fontSize: 16),
+                          textAlign: TextAlign.center,
+                        ),
+                        Text(
+                          'Geofence Radius: ${_organization!.geofencingRadius.toStringAsFixed(1)} meters',
+                          style: const TextStyle(fontSize: 16),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+
+                      // Status icon
+                      Icon(
+                        _isInGeofence ? Icons.location_on : Icons.location_off,
+                        size: 80,
+                        color: _isInGeofence ? Colors.green : Colors.red,
                       ),
-                      ElevatedButton(
-                        onPressed: _isInGeofence && _checkInTime != null
-                            ? _checkOut
-                            : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          disabledBackgroundColor: Colors.grey,
+                      const SizedBox(height: 20),
+
+                      // Status text
+                      Text(
+                        _status,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 18),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Check-in status
+                      if (_isInGeofence) ...[
+                        const Text(
+                          'Checked in at:',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
                         ),
-                        child: const Text('Manual Check-Out'),
+                        Text(
+                          _checkInTime != null
+                              ? DateFormat('yyyy-MM-dd HH:mm:ss')
+                                  .format(_checkInTime!)
+                              : 'Not checked in yet',
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'Duration in organization:',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          _formatDuration(),
+                          style: const TextStyle(
+                              fontSize: 24, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+
+                      const SizedBox(height: 40),
+
+                      // Manual check buttons (for testing)
+                      ElevatedButton(
+                        onPressed: _currentPosition != null
+                            ? () => _checkGeofence(_currentPosition!)
+                            : null,
+                        child: const Text('Refresh Location Status'),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Manual check-in/check-out buttons (for backup)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          ElevatedButton(
+                            onPressed: _isInGeofence && _checkInTime == null
+                                ? _checkIn
+                                : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              disabledBackgroundColor: Colors.grey,
+                            ),
+                            child: const Text('Manual Check-In'),
+                          ),
+                          ElevatedButton(
+                            onPressed: _isInGeofence && _checkInTime != null
+                                ? _checkOut
+                                : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              disabledBackgroundColor: Colors.grey,
+                            ),
+                            child: const Text('Manual Check-Out'),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
-    );
+                ),
+        ));
   }
 }
