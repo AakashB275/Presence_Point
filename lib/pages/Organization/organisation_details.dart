@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:presence_point_2/pages/admin_home_page.dart';
 import 'package:presence_point_2/widgets/CustomDrawer.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -47,6 +48,16 @@ class _OrganisationDetailsState extends State<OrganisationDetails> {
         _emailController.text = currentUser.email ?? '';
       });
     }
+  }
+
+  // Navigate to Admin/Employee page
+  void _navigateToAdminEmployeePage() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        // Replace AdminEmployeePage with your actual page class
+        builder: (context) => AdminHomePage(),
+      ),
+    );
   }
 
   @override
@@ -227,102 +238,111 @@ class _OrganisationDetailsState extends State<OrganisationDetails> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: CustomAppBar(
-        title: "Organization Details",
-        scaffoldKey: GlobalKey<ScaffoldState>(),
-      ),
-      drawer: CustomDrawer(),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 30),
-                const Text(
-                  "Organization's Details",
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+    return PopScope(
+        canPop: false,
+        onPopInvoked: (didPop) {
+          if (didPop) return;
+
+          // Navigate to employee/admin page on back button press
+          _navigateToAdminEmployeePage();
+        },
+        child: Scaffold(
+          appBar: CustomAppBar(
+            title: "Organization Details",
+            scaffoldKey: GlobalKey<ScaffoldState>(),
+          ),
+          drawer: CustomDrawer(),
+          body: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Form(
+              key: _formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 30),
+                    const Text(
+                      "Organization's Details",
+                      style:
+                          TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text("Organization's Name",
+                        style: TextStyle(fontSize: 16)),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _orgNameController,
+                      decoration: const InputDecoration(
+                        hintText: "Enter the name of your Organization",
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter organization name';
+                        }
+                        if (value.length < 3) {
+                          return 'Name must be at least 3 characters';
+                        }
+                        if (value.length > 255) {
+                          return 'Name must be less than 255 characters';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    const Text("Email ID", style: TextStyle(fontSize: 16)),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        hintText: "Enter your Email ID",
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter an email';
+                        }
+                        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                            .hasMatch(value)) {
+                          return 'Please enter a valid email';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    _buildLocationCard(),
+                    const SizedBox(height: 30),
+                    ElevatedButton(
+                      onPressed: () {
+                        if (_formKey.currentState!.validate()) {
+                          Navigator.pushReplacementNamed(
+                              context, '/organizationlocation');
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 50),
+                        backgroundColor: Colors.red,
+                      ),
+                      child: const Text("Set Location"),
+                    ),
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: _isLoading ? null : _storeOrganizationData,
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 50),
+                        backgroundColor: Colors.amber,
+                      ),
+                      child: _isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text("Create Organization"),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 20),
-                const Text("Organization's Name",
-                    style: TextStyle(fontSize: 16)),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _orgNameController,
-                  decoration: const InputDecoration(
-                    hintText: "Enter the name of your Organization",
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter organization name';
-                    }
-                    if (value.length < 3) {
-                      return 'Name must be at least 3 characters';
-                    }
-                    if (value.length > 255) {
-                      return 'Name must be less than 255 characters';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 20),
-                const Text("Email ID", style: TextStyle(fontSize: 16)),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    hintText: "Enter your Email ID",
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter an email';
-                    }
-                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                        .hasMatch(value)) {
-                      return 'Please enter a valid email';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 20),
-                _buildLocationCard(),
-                const SizedBox(height: 30),
-                ElevatedButton(
-                  onPressed: () {
-                    if (_formKey.currentState!.validate()) {
-                      Navigator.pushReplacementNamed(
-                          context, '/organizationlocation');
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 50),
-                    backgroundColor: Colors.red,
-                  ),
-                  child: const Text("Set Location"),
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _storeOrganizationData,
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 50),
-                    backgroundColor: Colors.amber,
-                  ),
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text("Create Organization"),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
-    );
+        ));
   }
 
   Widget _buildLocationCard() {

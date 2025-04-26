@@ -1,11 +1,16 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pie_chart/pie_chart.dart';
+import 'package:presence_point_2/pages/admin_home_page.dart';
 import '../../services/attendance_service.dart';
 import '../../services/location_service.dart';
 import '../../Widgets/CustomAppBar.dart';
 import '../../Widgets/CustomDrawer.dart';
 import '../../Widgets/WeeklyAttendanceChart.dart';
+
+// Import your admin or employee page
+// import '../employee/employee_dashboard.dart';  // Uncomment and adjust the import path
 
 class AnalyticsPage extends StatefulWidget {
   const AnalyticsPage({super.key});
@@ -94,55 +99,74 @@ class _AnalyticsPage extends State<AnalyticsPage> {
     }
   }
 
+  // Navigate to Admin/Employee page
+  void _navigateToAdminEmployeePage() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        // Replace AdminEmployeePage with your actual page class
+        builder: (context) => AdminHomePage(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      key: myKey,
-      appBar: CustomAppBar(title: "Presence Point", scaffoldKey: myKey),
-      drawer: CustomDrawer(),
-      body: Stack(
-        children: [
-          _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _errorMessage.isNotEmpty
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              _errorMessage,
-                              style: const TextStyle(color: Colors.red),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 20),
-                            ElevatedButton(
-                              onPressed: _loadAttendanceData,
-                              child: const Text('Retry'),
-                            ),
-                          ],
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+
+        // Navigate to employee/admin page on back button press
+        _navigateToAdminEmployeePage();
+      },
+      child: Scaffold(
+        key: myKey,
+        appBar: CustomAppBar(title: "Presence Point", scaffoldKey: myKey),
+        drawer: CustomDrawer(),
+        body: Stack(
+          children: [
+            _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _errorMessage.isNotEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                _errorMessage,
+                                style: const TextStyle(color: Colors.red),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 20),
+                              ElevatedButton(
+                                onPressed: _loadAttendanceData,
+                                child: const Text('Retry'),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    )
-                  : _buildContent(),
-          if (_showUpdateIndicator)
-            Positioned(
-              top: 10,
-              right: 10,
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  'Updated',
-                  style: TextStyle(color: Colors.white),
+                      )
+                    : _buildContent(),
+            if (_showUpdateIndicator)
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Updated',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
