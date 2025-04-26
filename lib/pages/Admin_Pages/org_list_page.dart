@@ -2,13 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'employee_list_page.dart';
 
-<<<<<<< HEAD
-class OrganizationsPage extends StatefulWidget {
-  const OrganizationsPage({super.key});
-
-=======
 class OrganizationsManage extends StatefulWidget {
->>>>>>> 519283ba0fc78a232c93a036323cb7d68a03e22f
   @override
   _OrganizationsManageState createState() => _OrganizationsManageState();
 }
@@ -257,31 +251,6 @@ class _OrganizationsManageState extends State<OrganizationsManage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-<<<<<<< HEAD
-      appBar: AppBar(title: Text("My Organizations")),
-      body: FutureBuilder(
-        future: fetchOrganizations(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return Center(child: CircularProgressIndicator());
-          }
-          final orgs = snapshot.data as List;
-
-          return ListView.builder(
-            itemCount: orgs.length,
-            itemBuilder: (context, index) {
-              final org = orgs[index];
-              return ListTile(
-                title: Text(org['org_name']),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => EmployeeListPage(orgId: org['org_id']),
-                    ),
-                  );
-                },
-=======
       appBar: AppBar(
         title: Text("My Organizations",
             style: TextStyle(fontWeight: FontWeight.bold)),
@@ -304,7 +273,6 @@ class _OrganizationsManageState extends State<OrganizationsManage> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                     content: Text('Create organization feature coming soon')),
->>>>>>> 519283ba0fc78a232c93a036323cb7d68a03e22f
               );
             },
             tooltip: 'Create Organization',

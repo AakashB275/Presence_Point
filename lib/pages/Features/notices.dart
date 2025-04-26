@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:presence_point_2/pages/admin_home_page.dart';
 import 'package:presence_point_2/services/notices_service.dart';
 // Import your admin/employee page
 // import 'path/to/your/admin_employee_page.dart';
@@ -171,7 +172,7 @@ class NoticeDetailPage extends StatelessWidget {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         // Replace AdminEmployeePage with your actual page class
-        builder: (context) => AdminEmployeePage(),
+        builder: (context) => AdminHomePage(),
       ),
     );
   }
@@ -229,23 +230,5 @@ class NoticeDetailPage extends StatelessWidget {
             ),
           ),
         ));
-  }
-}
-
-// Placeholder class for the Admin/Employee page
-// Replace this with your actual Admin/Employee page implementation
-class AdminEmployeePage extends StatelessWidget {
-  const AdminEmployeePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Admin/Employee Dashboard'),
-      ),
-      body: Center(
-        child: Text('Welcome to the Admin/Employee Dashboard'),
-      ),
-    );
   }
 }
