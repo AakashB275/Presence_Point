@@ -82,18 +82,20 @@ class UserState extends ChangeNotifier {
     notifyListeners();
   }
 
+// In UserState class
   Future<Map<String, dynamic>?> verifyOrganization(String orgCode) async {
     try {
       final response = await supabase
-          .from('organizations')
-          .select('id, org_name, org_code')
+          .from('organizations') // Ensure this matches your table name
+          .select('org_id, name, org_code') // Match actual DB column names
           .eq('org_code', orgCode)
           .maybeSingle();
 
       if (response != null) {
         return {
-          'org_id': response['id'],
-          'org_name': response['org_name'],
+          'org_id': response['org_id'],
+          'org_name':
+              response['org_name'], // If your DB uses 'name' not 'org_name'
           'org_code': response['org_code'],
         };
       }

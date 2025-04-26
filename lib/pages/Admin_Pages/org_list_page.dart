@@ -3,6 +3,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'employee_list_page.dart';
 
 class OrganizationsManage extends StatefulWidget {
+<<<<<<< HEAD
+=======
+  const OrganizationsManage({super.key});
+
+>>>>>>> 0f5452abe6027247129abcc6afc371d246a67885
   @override
   _OrganizationsManageState createState() => _OrganizationsManageState();
 }
