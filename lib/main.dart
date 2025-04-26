@@ -15,6 +15,7 @@ import 'pages/Organization/organization_location_page.dart';
 import 'pages/Organization/new_organisation.dart';
 import 'pages/Organization/organisation_details.dart';
 import 'pages/User_Pages/user_checkin.dart';
+import 'pages/Admin_Pages/org_list_page.dart';
 import 'pages/geoloc.dart';
 
 Future<void> main() async {
@@ -76,6 +77,7 @@ class MyApp extends StatelessWidget {
           '/profile': (context) => ProfileScreen(),
           '/geofencing': (context) => GeoAttendancePage(),
           '/notices': (context) => NoticesPage(),
+          '/team': (context) => OrganizationsManage(),
         },
         onGenerateRoute: (settings) {
           return MaterialPageRoute(

@@ -85,15 +85,15 @@ class UserState extends ChangeNotifier {
   Future<Map<String, dynamic>?> verifyOrganization(String orgCode) async {
     try {
       final response = await supabase
-          .from('organization') // Make sure this matches your table name
-          .select('id, name, org_code')
+          .from('organizations')
+          .select('id, org_name, org_code')
           .eq('org_code', orgCode)
           .maybeSingle();
 
       if (response != null) {
         return {
           'org_id': response['id'],
-          'org_name': response['name'],
+          'org_name': response['org_name'],
           'org_code': response['org_code'],
         };
       }
@@ -101,6 +101,36 @@ class UserState extends ChangeNotifier {
     } catch (e) {
       debugPrint("Organization verification error: $e");
       return null;
+    }
+  }
+
+  Future<void> createJoinRequest({required String orgId}) async {
+    try {
+      final userId = supabase.auth.currentUser!.id;
+
+      final existingRequest = await supabase
+          .from('organization_join_requests')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('org_id', orgId)
+          .eq('status', 'pending')
+          .maybeSingle();
+
+      if (existingRequest != null) {
+        throw Exception("Join request already sent and pending.");
+      }
+
+      await supabase.from('organization_join_requests').insert({
+        'user_id': userId,
+        'org_id': orgId,
+        'status': 'pending',
+        'created_at': DateTime.now().toIso8601String(),
+      });
+
+      debugPrint("Join request sent successfully.");
+    } catch (e) {
+      debugPrint("Error creating join request: $e");
+      rethrow;
     }
   }
 
@@ -113,7 +143,7 @@ class UserState extends ChangeNotifier {
 
       // Create new organization in Supabase
       final orgData = await supabase
-          .from('organization')
+          .from('organizations')
           .insert({
             'name': orgName,
             'org_code': orgCode,

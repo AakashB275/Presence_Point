@@ -32,12 +32,28 @@ class _NewOrganisationState extends State<NewOrganisation> {
           .verifyOrganization(_orgCodeController.text.trim());
 
       if (orgData != null) {
-        await Provider.of<UserState>(context, listen: false).joinOrganization(
-          orgId: orgData['org_id'].toString(),
-          orgName: orgData['org_name'].toString(),
-          orgCode: orgData['org_code'].toString(),
-        );
-        Navigator.pushReplacementNamed(context, "/home");
+        // ✅ Fix: Correct the field based on your database column
+        final String orgId =
+            orgData['org_id']?.toString() ?? ''; // Use 'org_id', not 'id'
+
+        if (orgId.isNotEmpty) {
+          await Provider.of<UserState>(context, listen: false)
+              .createJoinRequest(
+            orgId: orgId,
+          );
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text("Join request sent! Awaiting admin approval.")),
+          );
+
+          Navigator.pushReplacementNamed(context, "/home");
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text("Invalid organization data received.")),
+          );
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Organization not found")),
@@ -45,106 +61,90 @@ class _NewOrganisationState extends State<NewOrganisation> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error joining organization: ${e.toString()}")),
+        SnackBar(content: Text("Error: ${e.toString()}")),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _navigateToAdminEmployeePage() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        // Replace AdminEmployeePage with your actual page class
-        builder: (context) => AdminHomePage(),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-        canPop: false,
-        onPopInvoked: (didPop) {
-          if (didPop) return;
-
-          // Navigate to employee/admin page on back button press
-          _navigateToAdminEmployeePage();
-        },
-        child: Scaffold(
-          appBar: AppBar(
-            backgroundColor: Colors.amber,
-            title: const Text("Organization Setup"),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => Navigator.pushReplacementNamed(context, "/home"),
-            ),
-          ),
-          body: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 20),
-                  const Text("Create Organization",
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    value: selectedOrgType,
-                    items: _orgTypes.map((type) {
-                      return DropdownMenuItem(
-                        value: type,
-                        child: Text(type),
-                      );
-                    }).toList(),
-                    onChanged: (value) =>
-                        setState(() => selectedOrgType = value),
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      hintText: "Select Organization Type",
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: () => Navigator.pushReplacementNamed(
-                      context,
-                      "/organisationdetails",
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 50),
-                      backgroundColor: Colors.amber,
-                    ),
-                    child: const Text("Create Organization"),
-                  ),
-                  const SizedBox(height: 30),
-                  const Text("Join Organization",
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _orgCodeController,
-                    decoration: const InputDecoration(
-                      hintText: "Enter Organization Code",
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: _isLoading ? null : _joinOrganisation,
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 50),
-                      backgroundColor: Colors.blue,
-                    ),
-                    child: _isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text("Join Organization"),
-                  ),
-                ],
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.amber,
+        title: const Text("Organization Setup"),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pushReplacementNamed(context, "/home"),
+        ),
+      ),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 20),
+              const Text(
+                "Create Organization",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-            ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                value: selectedOrgType,
+                items: _orgTypes.map((type) {
+                  return DropdownMenuItem(
+                    value: type,
+                    child: Text(type),
+                  );
+                }).toList(),
+                onChanged: (value) => setState(() => selectedOrgType = value),
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: "Select Organization Type",
+                ),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => Navigator.pushReplacementNamed(
+                  context,
+                  "/organisationdetails",
+                ),
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 50),
+                  backgroundColor: Colors.amber,
+                ),
+                child: const Text("Create Organization"),
+              ),
+              const SizedBox(height: 30),
+              const Text(
+                "Join Organization",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _orgCodeController,
+                decoration: const InputDecoration(
+                  hintText: "Enter Organization Code",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _isLoading ? null : _joinOrganisation,
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 50),
+                  backgroundColor: Colors.blue,
+                ),
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text("Join Organization"),
+              ),
+            ],
           ),
-        ));
+        ),
+      ),
+    );
   }
 }
