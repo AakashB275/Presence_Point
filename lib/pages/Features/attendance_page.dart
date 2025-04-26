@@ -7,7 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import '../../services/geofencing_service.dart';
 
 class AttendancePage extends StatefulWidget {
-  const AttendancePage({Key? key}) : super(key: key);
+  const AttendancePage({super.key});
 
   @override
   _AttendancePageState createState() => _AttendancePageState();
@@ -301,7 +301,7 @@ class _AttendancePageState extends State<AttendancePage> {
 }
 
 class AttendanceHistoryPage extends StatefulWidget {
-  const AttendanceHistoryPage({Key? key}) : super(key: key);
+  const AttendanceHistoryPage({super.key});
 
   @override
   _AttendanceHistoryPageState createState() => _AttendanceHistoryPageState();

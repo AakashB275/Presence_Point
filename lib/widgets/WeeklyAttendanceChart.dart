@@ -6,10 +6,10 @@ class WeeklyAttendanceChart extends StatelessWidget {
   final bool showWeekends;
 
   const WeeklyAttendanceChart({
-    Key? key,
+    super.key,
     required this.weeklyHours,
     this.showWeekends = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

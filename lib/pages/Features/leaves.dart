@@ -5,6 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart' as uuid;
 
 class LeavesScreen extends StatefulWidget {
+  const LeavesScreen({super.key});
+
   @override
   _LeavesScreenState createState() => _LeavesScreenState();
 }
@@ -224,8 +226,8 @@ class _LeavesScreenState extends State<LeavesScreen> {
                 ),
           floatingActionButton: FloatingActionButton(
             onPressed: _showApplyLeaveDialog,
-            child: Icon(Icons.add),
             tooltip: 'Apply for Leave',
+            child: Icon(Icons.add),
           ),
         ));
   }

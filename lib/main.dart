@@ -30,6 +30,8 @@ Future<void> main() async {
 }
 
 class YourScreen extends StatelessWidget {
+  const YourScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     return WillPopScope(

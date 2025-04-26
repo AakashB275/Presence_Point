@@ -7,7 +7,7 @@ import 'package:presence_point_2/widgets/CustomAppBar.dart';
 import 'package:presence_point_2/widgets/CustomDrawer.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({Key? key}) : super(key: key);
+  const ProfileScreen({super.key});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -221,11 +221,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const Spacer(),
         ElevatedButton(
           onPressed: () => setState(() => _isEditing = true),
-          child: const Text('Edit Profile'),
           style: ElevatedButton.styleFrom(
             minimumSize: const Size(double.infinity, 50),
             backgroundColor: Colors.amber,
           ),
+          child: const Text('Edit Profile'),
         ),
       ],
     );
@@ -260,21 +260,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Expanded(
                 child: OutlinedButton(
                   onPressed: () => setState(() => _isEditing = false),
-                  child: const Text('Cancel'),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size(0, 50),
                   ),
+                  child: const Text('Cancel'),
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: ElevatedButton(
                   onPressed: _updateProfile,
-                  child: const Text('Save Changes'),
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(0, 50),
                     backgroundColor: Colors.green,
                   ),
+                  child: const Text('Save Changes'),
                 ),
               ),
             ],

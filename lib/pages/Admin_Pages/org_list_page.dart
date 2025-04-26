@@ -4,6 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'employee_list_page.dart';
 
 class OrganizationsPage extends StatefulWidget {
+  const OrganizationsPage({super.key});
+
   @override
   _OrganizationsPageState createState() => _OrganizationsPageState();
 }
@@ -25,8 +27,9 @@ class _OrganizationsPageState extends State<OrganizationsPage> {
       body: FutureBuilder(
         future: fetchOrganizations(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData)
+          if (!snapshot.hasData) {
             return Center(child: CircularProgressIndicator());
+          }
           final orgs = snapshot.data as List;
 
           return ListView.builder(

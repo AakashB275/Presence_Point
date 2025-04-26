@@ -7,7 +7,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class GeoAttendancePage extends StatefulWidget {
-  const GeoAttendancePage({Key? key}) : super(key: key);
+  const GeoAttendancePage({super.key});
 
   @override
   State<GeoAttendancePage> createState() => _GeoAttendancePageState();

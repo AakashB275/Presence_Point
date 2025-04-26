@@ -5,7 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class EmployeeListPage extends StatefulWidget {
   final String orgId;
 
-  const EmployeeListPage({required this.orgId});
+  const EmployeeListPage({super.key, required this.orgId});
 
   @override
   State<EmployeeListPage> createState() => _EmployeeListPageState();

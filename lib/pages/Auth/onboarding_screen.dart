@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import 'package:presence_point_2/services/user_state.dart';
 
 class OnboardingScreen extends StatefulWidget {
+  const OnboardingScreen({super.key});
+
   @override
   _OnboardingScreenState createState() => _OnboardingScreenState();
 }

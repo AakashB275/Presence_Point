@@ -8,7 +8,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class UserCheckin extends StatefulWidget {
-  const UserCheckin({Key? key}) : super(key: key);
+  const UserCheckin({super.key});
 
   @override
   State<UserCheckin> createState() => _GeofencingMapScreenState();

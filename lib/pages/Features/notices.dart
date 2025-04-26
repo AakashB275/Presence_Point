@@ -7,7 +7,7 @@ import 'package:presence_point_2/services/notices_service.dart';
 class NoticesPage extends StatelessWidget {
   final NoticeService noticeService = NoticeService();
 
-  NoticesPage({Key? key}) : super(key: key);
+  NoticesPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -164,7 +164,7 @@ class NoticesPage extends StatelessWidget {
 class NoticeDetailPage extends StatelessWidget {
   final Map<String, dynamic> notice;
 
-  const NoticeDetailPage({Key? key, required this.notice}) : super(key: key);
+  const NoticeDetailPage({super.key, required this.notice});
 
   // Add the missing function to navigate to admin/employee page
   void _navigateToAdminEmployeePage(BuildContext context) {
@@ -223,7 +223,7 @@ class NoticeDetailPage extends StatelessWidget {
                         // Implement opening the attachment
                       },
                     );
-                  }).toList(),
+                  }),
                 ],
               ],
             ),
@@ -235,6 +235,8 @@ class NoticeDetailPage extends StatelessWidget {
 // Placeholder class for the Admin/Employee page
 // Replace this with your actual Admin/Employee page implementation
 class AdminEmployeePage extends StatelessWidget {
+  const AdminEmployeePage({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

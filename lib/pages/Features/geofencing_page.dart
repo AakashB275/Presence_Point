@@ -37,7 +37,7 @@ class Organization {
 }
 
 class GeofencingPage extends StatefulWidget {
-  const GeofencingPage({Key? key}) : super(key: key);
+  const GeofencingPage({super.key});
 
   @override
   State<GeofencingPage> createState() => _GeofencingPageState();
