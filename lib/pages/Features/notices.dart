@@ -78,9 +78,10 @@ class _NoticesPageState extends State<NoticesPage> {
             },
             child: TabBarView(
               children: [
-                _buildNoticesList(context, _allNoticesFuture, _allNoticesKey),
-                _buildNoticesList(
-                    context, _importantNoticesFuture, _importantNoticesKey,
+                _buildNoticesList(context, _allNoticesFuture, _allNoticesKey,
+                    userState.isAdmin),
+                _buildNoticesList(context, _importantNoticesFuture,
+                    _importantNoticesKey, userState.isAdmin,
                     isImportantTab: true),
               ],
             ),
@@ -91,7 +92,7 @@ class _NoticesPageState extends State<NoticesPage> {
   }
 
   Widget _buildNoticesList(BuildContext context,
-      Future<List<Map<String, dynamic>>> futureNotices, Key key,
+      Future<List<Map<String, dynamic>>> futureNotices, Key key, bool isAdmin,
       {bool isImportantTab = false}) {
     return FutureBuilder<List<Map<String, dynamic>>>(
       key: key,
@@ -116,14 +117,15 @@ class _NoticesPageState extends State<NoticesPage> {
           itemCount: snapshot.data!.length,
           itemBuilder: (context, index) {
             final notice = snapshot.data![index];
-            return _buildNoticeCard(context, notice);
+            return _buildNoticeCard(context, notice, isAdmin);
           },
         );
       },
     );
   }
 
-  Widget _buildNoticeCard(BuildContext context, Map<String, dynamic> notice) {
+  Widget _buildNoticeCard(
+      BuildContext context, Map<String, dynamic> notice, bool isAdmin) {
     final isUnread = notice['viewed_at'] == null;
     final hasAttachments =
         notice['attachments'] != null && notice['attachments'].isNotEmpty;
@@ -165,6 +167,12 @@ class _NoticesPageState extends State<NoticesPage> {
             ),
           ],
         ),
+        trailing: isAdmin
+            ? IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: () => _showDeleteConfirmation(context, notice['id']),
+              )
+            : null,
         onTap: () {
           noticeService.markAsRead(notice['id']);
           Navigator.push(
@@ -174,6 +182,50 @@ class _NoticesPageState extends State<NoticesPage> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  // Show delete confirmation dialog
+  void _showDeleteConfirmation(BuildContext context, String noticeId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Notice'),
+        content: const Text(
+            'Are you sure you want to delete this notice? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              try {
+                // Close the dialog
+                Navigator.pop(context);
+
+                // Show loading indicator
+                ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Deleting notice...')));
+
+                // Delete the notice
+                await noticeService.deleteNotice(noticeId);
+
+                // Show success message
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Notice deleted successfully')));
+
+                // Refresh the notices list
+                _refreshNotices();
+              } catch (error) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error deleting notice: $error')));
+              }
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
       ),
     );
   }
@@ -242,7 +294,6 @@ class _NoticesPageState extends State<NoticesPage> {
                         isImportant: isImportant,
                       );
 
-                      // Close dialog
                       Navigator.pop(context);
 
                       // Show success message
@@ -294,18 +345,64 @@ class NoticeDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasAttachments =
         notice['attachments'] != null && notice['attachments'].isNotEmpty;
+    final userState = Provider.of<UserState>(context);
+    final noticeService = NoticeService();
 
     return PopScope(
         canPop: false,
         onPopInvoked: (didPop) {
           if (didPop) return;
 
-          // Navigate to employee/admin page on back button press
           _navigateToAdminEmployeePage(context);
         },
         child: Scaffold(
           appBar: AppBar(
             title: Text(notice['title']),
+            actions: [
+              if (userState.isAdmin)
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Delete Notice'),
+                        content: const Text(
+                            'Are you sure you want to delete this notice? This action cannot be undone.'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () async {
+                              try {
+                                await noticeService.deleteNotice(notice['id']);
+
+                                // Close the dialog and navigate back
+                                Navigator.pop(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            'Notice deleted successfully')));
+                                _navigateToAdminEmployeePage(context);
+                              } catch (error) {
+                                Navigator.pop(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content: Text(
+                                            'Error deleting notice: $error')));
+                              }
+                            },
+                            child: const Text('Delete',
+                                style: TextStyle(color: Colors.red)),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+            ],
           ),
           body: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
