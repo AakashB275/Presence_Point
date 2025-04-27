@@ -1,18 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:presence_point_2/pages/admin_home_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart' as uuid;
 
 class LeavesScreen extends StatefulWidget {
-  const LeavesScreen({super.key});
-
   @override
   _LeavesScreenState createState() => _LeavesScreenState();
 }
 
 class _LeavesScreenState extends State<LeavesScreen> {
   bool _isLoading = false;
+  bool _applying = false;
   List<Map<String, dynamic>> _leaveRequests = [];
   final supabase = Supabase.instance.client;
 
@@ -20,15 +18,6 @@ class _LeavesScreenState extends State<LeavesScreen> {
   void initState() {
     super.initState();
     _loadLeaveRequests();
-  }
-
-  void _navigateToAdminEmployeePage() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        // Replace AdminEmployeePage with your actual page class
-        builder: (context) => AdminHomePage(),
-      ),
-    );
   }
 
   Future<void> _loadLeaveRequests() async {
@@ -47,9 +36,12 @@ class _LeavesScreenState extends State<LeavesScreen> {
 
       setState(() {
         _leaveRequests = List<Map<String, dynamic>>.from(response);
-        _isLoading = false;
       });
     } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading leaves: ${e.toString()}')),
+      );
+    } finally {
       setState(() {
         _isLoading = false;
       });
@@ -64,172 +56,193 @@ class _LeavesScreenState extends State<LeavesScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Apply for Leave'),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<String>(
-                value: leaveType,
-                decoration: InputDecoration(labelText: 'Leave Type'),
-                items: ['sick', 'casual', 'earned'].map((type) {
-                  return DropdownMenuItem(
-                    value: type,
-                    child: Text(type.toUpperCase()),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  leaveType = value!;
-                },
-              ),
-              SizedBox(height: 16),
-              InkWell(
-                onTap: () async {
-                  final pickedDate = await showDatePicker(
-                    context: context,
-                    initialDate: startDate,
-                    firstDate: DateTime.now(),
-                    lastDate: DateTime.now().add(Duration(days: 365)),
-                  );
-                  if (pickedDate != null) {
-                    startDate = pickedDate;
-                  }
-                },
-                child: InputDecorator(
-                  decoration: InputDecoration(
-                    labelText: 'Start Date',
-                    suffixIcon: Icon(Icons.calendar_today),
-                  ),
-                  child: Text(DateFormat('MMM d, yyyy').format(startDate)),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => AlertDialog(
+          title: Text('Apply for Leave'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: leaveType,
+                  decoration: InputDecoration(labelText: 'Leave Type'),
+                  items: ['sick', 'casual', 'earned'].map((type) {
+                    return DropdownMenuItem(
+                      value: type,
+                      child: Text(type.toUpperCase()),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setModalState(() {
+                      leaveType = value!;
+                    });
+                  },
                 ),
-              ),
-              SizedBox(height: 16),
-              InkWell(
-                onTap: () async {
-                  final pickedDate = await showDatePicker(
-                    context: context,
-                    initialDate: endDate,
-                    firstDate: startDate,
-                    lastDate: DateTime.now().add(Duration(days: 365)),
-                  );
-                  if (pickedDate != null) {
-                    endDate = pickedDate;
-                  }
-                },
-                child: InputDecorator(
-                  decoration: InputDecoration(
-                    labelText: 'End Date',
-                    suffixIcon: Icon(Icons.calendar_today),
+                SizedBox(height: 16),
+                InkWell(
+                  onTap: () async {
+                    final pickedDate = await showDatePicker(
+                      context: context,
+                      initialDate: startDate,
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(Duration(days: 365)),
+                    );
+                    if (pickedDate != null) {
+                      setModalState(() {
+                        startDate = pickedDate;
+                      });
+                    }
+                  },
+                  child: InputDecorator(
+                    decoration: InputDecoration(
+                      labelText: 'Start Date',
+                      suffixIcon: Icon(Icons.calendar_today),
+                    ),
+                    child: Text(DateFormat('MMM d, yyyy').format(startDate)),
                   ),
-                  child: Text(DateFormat('MMM d, yyyy').format(endDate)),
                 ),
-              ),
-            ],
+                SizedBox(height: 16),
+                InkWell(
+                  onTap: () async {
+                    final pickedDate = await showDatePicker(
+                      context: context,
+                      initialDate: endDate,
+                      firstDate: startDate,
+                      lastDate: DateTime.now().add(Duration(days: 365)),
+                    );
+                    if (pickedDate != null) {
+                      setModalState(() {
+                        endDate = pickedDate;
+                      });
+                    }
+                  },
+                  child: InputDecorator(
+                    decoration: InputDecoration(
+                      labelText: 'End Date',
+                      suffixIcon: Icon(Icons.calendar_today),
+                    ),
+                    child: Text(DateFormat('MMM d, yyyy').format(endDate)),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (formKey.currentState!.validate()) {
-                try {
-                  final userId = supabase.auth.currentUser!.id;
-                  await supabase.from('leaves').insert({
-                    'id': uuid.Uuid().v4(),
-                    'user_id': userId,
-                    'leave_type': leaveType,
-                    'start_date': startDate.toIso8601String(),
-                    'end_date': endDate.toIso8601String(),
-                    'status': 'pending',
-                    'applied_at': DateTime.now().toIso8601String(),
-                  });
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: _applying
+                  ? null
+                  : () async {
+                      if (formKey.currentState!.validate()) {
+                        setState(() {
+                          _applying = true;
+                        });
 
-                  Navigator.of(context).pop();
-                  _loadLeaveRequests();
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: ${e.toString()}')),
-                  );
-                }
-              }
-            },
-            child: Text('Apply'),
-          ),
-        ],
+                        try {
+                          final userId = supabase.auth.currentUser!.id;
+                          await supabase.from('leaves').insert({
+                            'id': uuid.Uuid().v4(),
+                            'user_id': userId,
+                            'leave_type': leaveType,
+                            'start_date': startDate.toIso8601String(),
+                            'end_date': endDate.toIso8601String(),
+                            'status': 'pending',
+                            'applied_at': DateTime.now().toIso8601String(),
+                          });
+
+                          Navigator.of(context).pop();
+                          _loadLeaveRequests();
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Error: ${e.toString()}')),
+                          );
+                        } finally {
+                          setState(() {
+                            _applying = false;
+                          });
+                        }
+                      }
+                    },
+              child: _applying
+                  ? SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : Text('Apply'),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-        canPop: false,
-        onPopInvoked: (didPop) {
-          if (didPop) return;
-
-          // Navigate to employee/admin page on back button press
-          _navigateToAdminEmployeePage();
-        },
-        child: Scaffold(
-          appBar: AppBar(title: Text('Leave Requests')),
-          body: _isLoading
-              ? Center(child: CircularProgressIndicator())
-              : Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'My Leave Requests',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      SizedBox(height: 16),
-                      Expanded(
-                        child: _leaveRequests.isEmpty
-                            ? Center(child: Text('No leave requests found'))
-                            : ListView.builder(
-                                itemCount: _leaveRequests.length,
-                                itemBuilder: (context, index) {
-                                  final leave = _leaveRequests[index];
-                                  final startDate =
-                                      DateTime.parse(leave['start_date']);
-                                  final endDate =
-                                      DateTime.parse(leave['end_date']);
-
-                                  return Card(
-                                    margin: EdgeInsets.only(bottom: 8),
-                                    child: ListTile(
-                                      title: Text(
-                                        '${leave['leave_type'].toUpperCase()} Leave',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold),
-                                      ),
-                                      subtitle: Text(
-                                        'From: ${DateFormat('MMM d, yyyy').format(startDate)}\n'
-                                        'To: ${DateFormat('MMM d, yyyy').format(endDate)}\n'
-                                        'Status: ${leave['status'].toUpperCase()}',
-                                      ),
-                                      isThreeLine: true,
-                                      trailing: _getStatusIcon(leave['status']),
-                                    ),
-                                  );
-                                },
-                              ),
-                      ),
-                    ],
+    return Scaffold(
+      appBar: AppBar(title: Text('Leave Requests')),
+      body: _isLoading
+          ? Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'My Leave Requests',
+                    style: Theme.of(context).textTheme.titleLarge,
                   ),
-                ),
-          floatingActionButton: FloatingActionButton(
-            onPressed: _showApplyLeaveDialog,
-            tooltip: 'Apply for Leave',
-            child: Icon(Icons.add),
-          ),
-        ));
+                  SizedBox(height: 16),
+                  Expanded(
+                    child: _leaveRequests.isEmpty
+                        ? Center(child: Text('No leave requests found'))
+                        : ListView.builder(
+                            itemCount: _leaveRequests.length,
+                            itemBuilder: (context, index) {
+                              final leave = _leaveRequests[index];
+                              final startDate =
+                                  DateTime.parse(leave['start_date']);
+                              final endDate = DateTime.parse(leave['end_date']);
+                              final appliedAt =
+                                  DateTime.parse(leave['applied_at']);
+
+                              return Card(
+                                margin: EdgeInsets.only(bottom: 8),
+                                child: ListTile(
+                                  title: Text(
+                                    '${leave['leave_type'].toUpperCase()} Leave',
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  subtitle: Text(
+                                    'From: ${DateFormat('MMM d, yyyy').format(startDate)}\n'
+                                    'To: ${DateFormat('MMM d, yyyy').format(endDate)}\n'
+                                    'Applied on: ${DateFormat('MMM d, yyyy').format(appliedAt)}\n'
+                                    'Status: ${leave['status'].toUpperCase()}',
+                                  ),
+                                  isThreeLine: true,
+                                  trailing: _getStatusIcon(leave['status']),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showApplyLeaveDialog,
+        child: Icon(Icons.add),
+        tooltip: 'Apply for Leave',
+      ),
+    );
   }
 
   Widget _getStatusIcon(String status) {

@@ -1,11 +1,10 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:presence_point_2/services/user_state.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+// Employee Model and Repository
 class Employee {
   final String userId;
   final String authUserId;
@@ -64,14 +63,127 @@ class EmployeeRepository {
   }
 }
 
-class AdminEmployeesPage extends StatefulWidget {
-  const AdminEmployeesPage({super.key});
+// JoinRequest Model and Repository
+class JoinRequest {
+  final String id;
+  final String userId;
+  final String orgId;
+  final String userEmail;
+  final String userName;
+  final DateTime createdAt;
 
-  @override
-  State<AdminEmployeesPage> createState() => _AdminEmployeesPageState();
+  JoinRequest({
+    required this.id,
+    required this.userId,
+    required this.orgId,
+    required this.userEmail,
+    required this.userName,
+    required this.createdAt,
+  });
+
+  factory JoinRequest.fromMap(Map<String, dynamic> map) {
+    return JoinRequest(
+      id: map['id'] as String,
+      userId: map['user_id'] as String,
+      orgId: map['org_id'] as String,
+      userEmail: map['user_email'] as String,
+      userName: map['user_name'] as String,
+      createdAt: DateTime.parse(map['created_at'] as String),
+    );
+  }
 }
 
-class _AdminEmployeesPageState extends State<AdminEmployeesPage> {
+class JoinRequestRepository {
+  final SupabaseClient supabase;
+
+  JoinRequestRepository(this.supabase);
+
+  Future<List<JoinRequest>> getPendingRequests(String orgId) async {
+    final response = await supabase
+        .from('organization_join_requests')
+        .select('''
+        id, 
+        user_id, 
+        org_id, 
+        created_at,
+        user:users(email, name)
+      ''')
+        .eq('org_id', orgId)
+        .eq('status', 'pending')
+        .order('created_at', ascending: false);
+
+    return (response as List)
+        .map((e) => JoinRequest.fromMap({
+              ...e,
+              'user_email': e['user']['email'],
+              'user_name': e['user']['name'],
+            }))
+        .toList();
+  }
+
+  Future<void> approveRequest(String requestId, String userId) async {
+    await supabase.rpc('approve_join_request', params: {
+      'request_id': requestId,
+      'user_id': userId,
+    });
+    final request = await supabase
+        .from('organization_join_requests')
+        .select('org_id')
+        .eq('id', requestId)
+        .single();
+
+    // Increment the user count
+    await supabase
+        .from('organizations')
+        .update({'totaluser': supabase.rpc('increment')}).eq(
+            'org_id', request['org_id']);
+  }
+
+  Future<void> rejectRequest(String requestId) async {
+    await supabase
+        .from('organization_join_requests')
+        .update({'status': 'rejected'}).eq('id', requestId);
+  }
+}
+
+// Main Combined Admin Page
+class CombinedAdminPage extends StatelessWidget {
+  const CombinedAdminPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Organization Management'),
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Members', icon: Icon(Icons.people)),
+              Tab(text: 'Join Requests', icon: Icon(Icons.person_add)),
+            ],
+          ),
+        ),
+        body: const TabBarView(
+          children: [
+            AdminEmployeesTab(),
+            JoinRequestsTab(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Members Tab
+class AdminEmployeesTab extends StatefulWidget {
+  const AdminEmployeesTab({super.key});
+
+  @override
+  State<AdminEmployeesTab> createState() => _AdminEmployeesTabState();
+}
+
+class _AdminEmployeesTabState extends State<AdminEmployeesTab> {
   final EmployeeRepository _employeeRepo =
       EmployeeRepository(Supabase.instance.client);
   late Future<List<Employee>> _employeesFuture;
@@ -95,37 +207,32 @@ class _AdminEmployeesPageState extends State<AdminEmployeesPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Organization Members'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadEmployees,
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search members...',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Search members...',
+              prefixIcon: const Icon(Icons.search),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
               ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value.toLowerCase();
-                });
-              },
             ),
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value.toLowerCase();
+              });
+            },
           ),
-          Expanded(
+        ),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () async {
+              _loadEmployees();
+              return;
+            },
             child: FutureBuilder<List<Employee>>(
               future: _employeesFuture,
               builder: (context, snapshot) {
@@ -158,8 +265,8 @@ class _AdminEmployeesPageState extends State<AdminEmployeesPage> {
               },
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -339,5 +446,123 @@ class _AdminEmployeesPageState extends State<AdminEmployeesPage> {
         ],
       ),
     );
+  }
+}
+
+// Join Requests Tab
+class JoinRequestsTab extends StatefulWidget {
+  const JoinRequestsTab({super.key});
+
+  @override
+  State<JoinRequestsTab> createState() => _JoinRequestsTabState();
+}
+
+class _JoinRequestsTabState extends State<JoinRequestsTab> {
+  final JoinRequestRepository _repo =
+      JoinRequestRepository(Supabase.instance.client);
+  late Future<List<JoinRequest>> _requestsFuture;
+  late UserState _userState;
+
+  @override
+  void initState() {
+    super.initState();
+    _userState = context.read<UserState>();
+    _loadRequests();
+  }
+
+  void _loadRequests() {
+    setState(() {
+      _requestsFuture = _repo.getPendingRequests(_userState.currentOrgId!);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: () async {
+        _loadRequests();
+        return;
+      },
+      child: FutureBuilder<List<JoinRequest>>(
+        future: _requestsFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            debugPrint('Error: ${snapshot.error}');
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+
+          final requests = snapshot.data!;
+
+          if (requests.isEmpty) {
+            return const Center(child: Text('No pending requests'));
+          }
+
+          return ListView.builder(
+            itemCount: requests.length,
+            itemBuilder: (context, index) {
+              final request = requests[index];
+              return Card(
+                margin: const EdgeInsets.all(8),
+                child: ListTile(
+                  title: Text(request.userEmail),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(request.userName),
+                      Text(DateFormat.yMMMd().format(request.createdAt)),
+                    ],
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.check, color: Colors.green),
+                        onPressed: () => _handleApproval(request),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.red),
+                        onPressed: () => _handleRejection(request.id),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _handleApproval(JoinRequest request) async {
+    try {
+      await _repo.approveRequest(request.id, request.userId);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Request approved')),
+      );
+      _loadRequests();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
+    }
+  }
+
+  Future<void> _handleRejection(String requestId) async {
+    try {
+      await _repo.rejectRequest(requestId);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Request rejected')),
+      );
+      _loadRequests();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
+    }
   }
 }

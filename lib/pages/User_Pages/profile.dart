@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -7,7 +6,9 @@ import 'package:presence_point_2/widgets/CustomAppBar.dart';
 import 'package:presence_point_2/widgets/CustomDrawer.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  static const routeName = '/profile'; // 👈 Easy for routing!
+
+  const ProfileScreen({Key? key}) : super(key: key);
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -20,22 +21,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   late Future<Map<String, dynamic>> _profileFuture;
   bool _isEditing = false;
-  late TextEditingController _nameController;
-  late TextEditingController _emailController;
+  late final TextEditingController _nameController;
+  late final TextEditingController _emailController;
 
   @override
   void initState() {
     super.initState();
-    _initializeProfile();
-  }
-
-  void _initializeProfile() {
-    _profileFuture = _fetchUserProfile().catchError((error) {
-      debugPrint('Profile loading error: $error');
-      throw error; // Re-throw to let FutureBuilder handle it
-    });
     _nameController = TextEditingController();
     _emailController = TextEditingController();
+    _loadProfile();
+  }
+
+  void _loadProfile() {
+    _profileFuture = _fetchUserProfile();
   }
 
   Future<Map<String, dynamic>> _fetchUserProfile() async {
@@ -44,14 +42,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (userId == null) throw Exception('User not authenticated');
 
       final response = await supabase
-          .from('users') // Changed from 'user' to 'users'
-          .select('''
-            name, 
-            email,
-            created_at,
-            organization:org_id (org_name, org_code)
-          ''')
-          .eq('id', userId)
+          .from('users')
+          .select(
+              'name, email, created_at, organization:org_id (org_name, org_code)')
+          .eq('auth_user_id', userId) // Changed to singular 'auth_user_id'
           .single()
           .timeout(const Duration(seconds: 10));
 
@@ -73,11 +67,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       await supabase.from('users').update({
         'name': _nameController.text,
-      }).eq('id', supabase.auth.currentUser!.id);
+      }).eq('auth_user_id',
+          supabase.auth.currentUser!.id); // Changed to singular 'auth_user_id'
 
-      setState(() {
-        _profileFuture = _fetchUserProfile();
-      });
+      _loadProfile();
+      setState(() {}); // Refresh after update
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -88,7 +82,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error updating profile: ${e.toString()}')),
       );
-      setState(() => _isEditing = true); // Return to edit mode on failure
+      setState(() => _isEditing = true); // Return to edit mode
     }
   }
 
@@ -121,16 +115,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
             }
 
             if (snapshot.hasError) {
-              return _buildErrorState(snapshot.error as String?);
+              return _buildErrorState(snapshot.error.toString());
             }
 
             if (!snapshot.hasData) {
-              return _buildErrorState(
-                  Exception('No profile data found') as String?);
+              return _buildErrorState('No profile data found');
             }
 
             final profile = snapshot.data!;
-            _initializeControllers(profile);
+            _nameController.text = profile['name']?.toString() ?? '';
+            _emailController.text = profile['email']?.toString() ?? '';
 
             return Padding(
               padding: const EdgeInsets.all(16.0),
@@ -152,13 +146,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _initializeControllers(Map<String, dynamic> profile) {
-    _nameController = TextEditingController(text: profile['name']?.toString());
-    _emailController =
-        TextEditingController(text: profile['email']?.toString());
-  }
-
-  Widget _buildErrorState(String? error) {
+  Widget _buildErrorState(String error) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -166,13 +154,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const Icon(Icons.error_outline, size: 48, color: Colors.red),
           const SizedBox(height: 16),
           Text(
-            error ?? 'Failed to load profile',
+            error,
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
           ElevatedButton(
-            onPressed: () =>
-                setState(() => _profileFuture = _fetchUserProfile()),
+            onPressed: () => setState(() => _loadProfile()),
             child: const Text('Retry'),
           ),
         ],
@@ -221,11 +208,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const Spacer(),
         ElevatedButton(
           onPressed: () => setState(() => _isEditing = true),
+          child: const Text('Edit Profile'),
           style: ElevatedButton.styleFrom(
             minimumSize: const Size(double.infinity, 50),
             backgroundColor: Colors.amber,
           ),
-          child: const Text('Edit Profile'),
         ),
       ],
     );
@@ -248,11 +235,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 16),
           TextFormField(
             controller: _emailController,
+            enabled: false,
             decoration: const InputDecoration(
               labelText: 'Email',
               border: OutlineInputBorder(),
             ),
-            enabled: false, // Email shouldn't be editable
           ),
           const SizedBox(height: 24),
           Row(
@@ -260,21 +247,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Expanded(
                 child: OutlinedButton(
                   onPressed: () => setState(() => _isEditing = false),
+                  child: const Text('Cancel'),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size(0, 50),
                   ),
-                  child: const Text('Cancel'),
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: ElevatedButton(
                   onPressed: _updateProfile,
+                  child: const Text('Save Changes'),
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(0, 50),
                     backgroundColor: Colors.green,
                   ),
-                  child: const Text('Save Changes'),
                 ),
               ),
             ],

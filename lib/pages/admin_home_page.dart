@@ -16,13 +16,136 @@ class _AdminHomePageState extends State<AdminHomePage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _isLoading = false;
 
-  // Dummy data for demonstration
-  final stats = {
-    'Total Employees': {'value': '127', 'color': Colors.indigo},
-    'Present Today': {'value': '113', 'color': Colors.green},
-    'Absent Today': {'value': '14', 'color': Colors.red},
-    'Locations': {'value': '5', 'color': Colors.orange},
-  };
+  // Dynamic data variables
+  int totalEmployees = 0;
+  int presentToday = 0;
+  int absentToday = 0;
+  int locationsCount = 0;
+  String orgName = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDashboardData();
+  }
+
+  Future<void> _fetchDashboardData() async {
+    setState(() => _isLoading = true);
+    try {
+      // Get current organization ID from user state
+      final user = supabase.auth.currentUser;
+      if (user == null) return;
+
+      // Get user's org_id
+      final userData = await supabase
+          .from('users')
+          .select('org_id')
+          .eq('auth_user_id', user.id)
+          .single();
+
+      final orgId = userData['org_id'] as String;
+
+      // Fetch all data in parallel
+      final results = await Future.wait([
+        _getTotalEmployees(orgId),
+        _getPresentTodayCount(orgId),
+        _getLocationsCount(orgId),
+        _getOrgName(orgId),
+      ]);
+
+      setState(() {
+        totalEmployees = results[0] as int;
+        presentToday = results[1] as int;
+        absentToday = totalEmployees - presentToday;
+        locationsCount = results[2] as int;
+        orgName = results[3] as String;
+      });
+    } catch (e) {
+      debugPrint('Error fetching dashboard data: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading data: $e')),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<int> _getTotalEmployees(String orgId) async {
+    final response = await supabase
+        .from('users')
+        .select('auth_user_id')
+        .eq('org_id', orgId)
+        .count();
+
+    return response.count;
+  }
+
+  Future<int> _getPresentTodayCount(String orgId) async {
+    try {
+      // Get UTC timestamps for today
+      final now = DateTime.now().toUtc();
+      final startOfDay = DateTime.utc(now.year, now.month, now.day);
+      final endOfDay = startOfDay.add(const Duration(days: 1));
+
+      debugPrint('Fetching attendance between:');
+      debugPrint('Start: ${startOfDay.toIso8601String()}');
+      debugPrint('End: ${endOfDay.toIso8601String()}');
+
+      final response = await supabase
+          .from('attendance')
+          .select('auth_user_id')
+          .eq('org_id', orgId)
+          .gte('check_in_time', startOfDay.toIso8601String())
+          .lt('check_in_time', endOfDay.toIso8601String())
+          .count(CountOption.exact);
+
+      debugPrint('Found ${response.count} records');
+      debugPrint('Data: ${response.data}');
+
+      return response.count;
+    } catch (e) {
+      debugPrint('Error in _getPresentTodayCount: $e');
+      return 0;
+    }
+  }
+
+  Future<int> _getLocationsCount(String orgId) async {
+    try {
+      final response = await supabase
+          .from('organization') // Try singular form if plural doesn't exist
+          .select('locations_count')
+          .eq('org_id', orgId)
+          .single();
+
+      return response['locations_count'] ?? 0;
+    } catch (e) {
+      debugPrint('Error fetching locations count: $e');
+      return 0; // Return default value
+    }
+  }
+
+  Future<String> _getOrgName(String orgId) async {
+    try {
+      final response = await supabase
+          .from('organization') // Try singular form
+          .select('org_name')
+          .eq('org_id', orgId)
+          .single();
+
+      return response['org_name'] ?? 'Organization';
+    } catch (e) {
+      debugPrint('Error fetching organization name: $e');
+      return 'Organization'; // Fallback name
+    }
+  }
+
+  // Dynamic stats based on fetched data
+  Map<String, Map<String, dynamic>> get stats => {
+        'Total Employees': {'value': '$totalEmployees', 'color': Colors.indigo},
+        'Present Today': {'value': '$presentToday', 'color': Colors.green},
+        'Absent Today': {'value': '$absentToday', 'color': Colors.red},
+        'Locations': {'value': '$locationsCount', 'color': Colors.orange},
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -30,37 +153,29 @@ class _AdminHomePageState extends State<AdminHomePage> {
       canPop: false,
       onPopInvoked: (didPop) async {
         if (didPop) return;
-
-        // Show confirmation dialog
         final shouldPop = await showDialog<bool>(
           context: context,
-          builder: (context) {
-            return AlertDialog(
-              title: Text('Exit App?'),
-              content: Text('Are you sure you want to exit the app?'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: Text('No'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  child: Text('Yes'),
-                ),
-              ],
-            );
-          },
+          builder: (context) => AlertDialog(
+            title: const Text('Exit App?'),
+            content: const Text('Are you sure you want to exit the app?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('No'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Yes'),
+              ),
+            ],
+          ),
         );
-
-        if (shouldPop ?? false) {
-          // This will exit the app
-          SystemNavigator.pop();
-        }
+        if (shouldPop ?? false) SystemNavigator.pop();
       },
       child: Scaffold(
         key: _scaffoldKey,
         appBar: CustomAppBar(
-          title: "Admin Dashboard",
+          title: "$orgName Dashboard",
           scaffoldKey: _scaffoldKey,
         ),
         drawer: CustomDrawer(),
@@ -70,16 +185,18 @@ class _AdminHomePageState extends State<AdminHomePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  "Admin Dashboard",
-                  style: TextStyle(
+                Text(
+                  "$orgName Dashboard",
+                  style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: Colors.indigo,
                   ),
                 ),
                 const SizedBox(height: 16),
-                _buildStatsRow(),
+                _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _buildStatsRow(),
                 const SizedBox(height: 24),
                 const Text(
                   "Quick Actions",
@@ -129,6 +246,11 @@ class _AdminHomePageState extends State<AdminHomePage> {
               ],
             ),
           ),
+        ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: _fetchDashboardData,
+          tooltip: 'Refresh',
+          child: const Icon(Icons.refresh),
         ),
       ),
     );
@@ -232,7 +354,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
       child: SizedBox(
         width: double.infinity,
         child: OutlinedButton.icon(
-          onPressed: _isLoading ? null : () => _signOut(),
+          onPressed: _isLoading ? null : _signOut,
           icon: _isLoading
               ? const SizedBox(
                   width: 20,
