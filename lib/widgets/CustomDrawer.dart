@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class CustomDrawer extends StatelessWidget {
   final supabase = Supabase.instance.client;
 
-  const CustomDrawer({super.key});
+  CustomDrawer({super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:presence_point_2/pages/Admin_Pages/join_admin_page.dart';
 import 'package:presence_point_2/pages/Features/notices.dart';
 import 'package:presence_point_2/pages/admin_home_page.dart';
 import 'package:presence_point_2/pages/employee_home_page.dart';
@@ -15,7 +16,6 @@ import 'pages/Organization/organization_location_page.dart';
 import 'pages/Organization/new_organisation.dart';
 import 'pages/Organization/organisation_details.dart';
 import 'pages/User_Pages/user_checkin.dart';
-import 'pages/Admin_Pages/org_list_page.dart';
 import 'pages/geoloc.dart';
 
 Future<void> main() async {
@@ -77,7 +77,7 @@ class MyApp extends StatelessWidget {
           '/profile': (context) => ProfileScreen(),
           '/geofencing': (context) => GeoAttendancePage(),
           '/notices': (context) => NoticesPage(),
-          '/team': (context) => OrganizationsManage(),
+          '/team': (context) => JoinRequestsAdminPage(),
         },
         onGenerateRoute: (settings) {
           return MaterialPageRoute(

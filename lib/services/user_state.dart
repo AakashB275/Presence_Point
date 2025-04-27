@@ -34,7 +34,6 @@ class UserState extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
 
-      // Load persisted state
       _isFirstTime = prefs.getBool('first_time') ?? true;
       _hasJoinedOrg = prefs.getBool('joined_org') ?? false;
 
@@ -43,14 +42,11 @@ class UserState extends ChangeNotifier {
         _currentOrgName = prefs.getString('current_org_name');
         _currentOrgCode = prefs.getString('current_org_code');
 
-        // Load user role if logged in and has org
         if (isLoggedIn && _currentOrgId != null) {
           _userRole = await _fetchUserRole(_currentOrgId!);
         }
-      } else if (isLoggedIn) {
-        // Set default role as 'employee' for logged-in users without an org
-        _userRole = 'employee';
       }
+      // Remove the else clause that sets default role
     } catch (e) {
       debugPrint("UserState initialization error: $e");
     } finally {
@@ -64,7 +60,8 @@ class UserState extends ChangeNotifier {
       final response = await supabase
           .from('users')
           .select('role')
-          .eq('auth_user_id', supabase.auth.currentUser!.id)
+          .eq('auth_user_id',
+              supabase.auth.currentUser!.id) // Changed to auth_user_id
           .eq('org_id', orgId)
           .maybeSingle();
 
@@ -75,27 +72,23 @@ class UserState extends ChangeNotifier {
     }
   }
 
-  // Add a method to handle user registration
   Future<void> handleUserRegistration() async {
-    // Set default role to employee for newly registered users
     _userRole = 'employee';
     notifyListeners();
   }
 
-// In UserState class
   Future<Map<String, dynamic>?> verifyOrganization(String orgCode) async {
     try {
       final response = await supabase
-          .from('organizations') // Ensure this matches your table name
-          .select('org_id, name, org_code') // Match actual DB column names
+          .from('organization')
+          .select('org_id, org_name, org_code')
           .eq('org_code', orgCode)
           .maybeSingle();
 
       if (response != null) {
         return {
           'org_id': response['org_id'],
-          'org_name':
-              response['org_name'], // If your DB uses 'name' not 'org_name'
+          'org_name': response['org_name'],
           'org_code': response['org_code'],
         };
       }
@@ -108,12 +101,26 @@ class UserState extends ChangeNotifier {
 
   Future<void> createJoinRequest({required String orgId}) async {
     try {
-      final userId = supabase.auth.currentUser!.id;
+      final currentUser = supabase.auth.currentUser!;
+      final authUserId = currentUser.id;
 
+      // First check if user exists
+      final existingUser = await supabase
+          .from('users')
+          .select('auth_user_id')
+          .eq('auth_user_id', authUserId)
+          .maybeSingle();
+
+      if (existingUser == null) {
+        throw Exception("User not registered. Please contact admin.");
+      }
+
+      // Now check if a join request already exists
       final existingRequest = await supabase
           .from('organization_join_requests')
           .select('id')
-          .eq('user_id', userId)
+          .eq('user_id',
+              authUserId) // Assuming this should also be auth_user_id
           .eq('org_id', orgId)
           .eq('status', 'pending')
           .maybeSingle();
@@ -122,8 +129,9 @@ class UserState extends ChangeNotifier {
         throw Exception("Join request already sent and pending.");
       }
 
+      // Create the join request
       await supabase.from('organization_join_requests').insert({
-        'user_id': userId,
+        'user_id': authUserId, // Consistent use of auth_user_id
         'org_id': orgId,
         'status': 'pending',
         'created_at': DateTime.now().toIso8601String(),
@@ -143,24 +151,22 @@ class UserState extends ChangeNotifier {
     try {
       final userId = supabase.auth.currentUser!.id;
 
-      // Create new organization in Supabase
       final orgData = await supabase
-          .from('organizations')
+          .from('organization')
           .insert({
-            'name': orgName,
+            'org_name': orgName,
             'org_code': orgCode,
-            'created_by': userId,
+            'createdby': userId,
             'created_at': DateTime.now().toIso8601String(),
           })
           .select()
           .single();
 
-      // Join the organization as admin
       await joinOrganization(
-        orgId: orgData['id'],
+        orgId: orgData['org_id'],
         orgName: orgName,
         orgCode: orgCode,
-        role: 'admin', // Creator becomes admin
+        role: 'admin',
       );
 
       notifyListeners();
@@ -178,23 +184,19 @@ class UserState extends ChangeNotifier {
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final userId = supabase.auth.currentUser!.id;
+      final authUserId = supabase.auth.currentUser!.id;
 
-      // Persist org data
       await prefs.setBool('joined_org', true);
       await prefs.setString('current_org_id', orgId);
       await prefs.setString('current_org_name', orgName);
       await prefs.setString('current_org_code', orgCode);
 
-      // Assign role in Supabase
-      await supabase.from('user_roles').upsert({
-        'user_id': userId,
+      // Update user org and role
+      await supabase.from('users').update({
         'org_id': orgId,
         'role': role,
-        'created_at': DateTime.now().toIso8601String(),
-      });
+      }).eq('auth_user_id', authUserId); // Changed to auth_user_id
 
-      // Update state
       _currentOrgId = orgId;
       _currentOrgName = orgName;
       _currentOrgCode = orgCode;
@@ -212,18 +214,16 @@ class UserState extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
 
-      // Clear persisted org data
       await prefs.remove('current_org_id');
       await prefs.remove('current_org_name');
       await prefs.remove('current_org_code');
       await prefs.setBool('joined_org', false);
 
-      // Update state
       _currentOrgId = null;
       _currentOrgName = null;
       _currentOrgCode = null;
       _hasJoinedOrg = false;
-      _userRole = 'employee'; // Reset to default employee role
+      _userRole = 'employee';
 
       notifyListeners();
     } catch (e) {
@@ -245,17 +245,14 @@ class UserState extends ChangeNotifier {
     await _initialize();
   }
 
-  // Role checking helpers
   bool get isAdmin => _userRole == 'admin';
   bool get isEmployee => !isAdmin && _userRole != null;
 
   Future<bool> checkPermission(String requiredRole) async {
     if (_currentOrgId == null) return false;
 
-    // Refresh role if not set
     _userRole ??= await _fetchUserRole(_currentOrgId!);
 
-    // Simple role hierarchy check
     switch (requiredRole.toLowerCase()) {
       case 'admin':
         return isAdmin;
