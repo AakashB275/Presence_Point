@@ -74,7 +74,7 @@ class CustomDrawer extends StatelessWidget {
           ),
           ListTile(
             leading: Icon(Icons.group),
-            title: const Text('Organisation'),
+            title: const Text('Organiszation'),
             onTap: () {
               Navigator.pushReplacementNamed(context, '/neworganisation');
             },

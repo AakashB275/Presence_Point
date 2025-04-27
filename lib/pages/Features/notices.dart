@@ -1,16 +1,50 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:presence_point_2/pages/admin_home_page.dart';
 import 'package:presence_point_2/services/notices_service.dart';
-// Import your admin/employee page
-// import 'path/to/your/admin_employee_page.dart';
+import 'package:provider/provider.dart';
+import 'package:presence_point_2/services/user_state.dart';
 
-class NoticesPage extends StatelessWidget {
+class NoticesPage extends StatefulWidget {
+  const NoticesPage({super.key});
+
+  @override
+  State<NoticesPage> createState() => _NoticesPageState();
+}
+
+class _NoticesPageState extends State<NoticesPage> {
   final NoticeService noticeService = NoticeService();
+  // Key to force refresh FutureBuilders
+  final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey =
+      GlobalKey<RefreshIndicatorState>();
 
-  NoticesPage({super.key});
+  // Keys for both list views to refresh them
+  final GlobalKey _allNoticesKey = GlobalKey();
+  final GlobalKey _importantNoticesKey = GlobalKey();
+
+  // Future instances that can be refreshed
+  late Future<List<Map<String, dynamic>>> _allNoticesFuture;
+  late Future<List<Map<String, dynamic>>> _importantNoticesFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshNotices();
+  }
+
+  // Method to refresh both notice lists
+  void _refreshNotices() {
+    setState(() {
+      _allNoticesFuture = noticeService.getNotices();
+      _importantNoticesFuture = noticeService.getNotices(isImportant: true);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Get access to the UserState
+    final userState = Provider.of<UserState>(context);
+
     return DefaultTabController(
       length: 2,
       child: PopScope(
@@ -29,64 +63,53 @@ class NoticesPage extends StatelessWidget {
               ],
             ),
             actions: [
-              FutureBuilder<bool>(
-                future: noticeService.isAdmin(),
-                builder: (context, snapshot) {
-                  if (snapshot.data == true) {
-                    return IconButton(
-                      icon: const Icon(Icons.add),
-                      onPressed: () => _showCreateNoticeDialog(context),
-                    );
-                  }
-                  return const SizedBox();
-                },
-              ),
+              // Only show add button if user is admin
+              if (userState.isAdmin)
+                IconButton(
+                  icon: const Icon(Icons.add),
+                  onPressed: () => _showCreateNoticeDialog(context),
+                ),
             ],
           ),
-          body: TabBarView(
-            children: [
-              _buildNoticesList(context),
-              _buildImportantNoticesList(context),
-            ],
+          body: RefreshIndicator(
+            key: _refreshIndicatorKey,
+            onRefresh: () async {
+              _refreshNotices();
+            },
+            child: TabBarView(
+              children: [
+                _buildNoticesList(context, _allNoticesFuture, _allNoticesKey),
+                _buildNoticesList(
+                    context, _importantNoticesFuture, _importantNoticesKey,
+                    isImportantTab: true),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildNoticesList(BuildContext context) {
+  Widget _buildNoticesList(BuildContext context,
+      Future<List<Map<String, dynamic>>> futureNotices, Key key,
+      {bool isImportantTab = false}) {
     return FutureBuilder<List<Map<String, dynamic>>>(
-      future: noticeService.getNotices(),
+      key: key,
+      future: futureNotices,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text('No notices available'));
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
         }
 
-        return ListView.builder(
-          itemCount: snapshot.data!.length,
-          itemBuilder: (context, index) {
-            final notice = snapshot.data![index];
-            return _buildNoticeCard(context, notice);
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildImportantNoticesList(BuildContext context) {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: noticeService.getNotices(isImportant: true),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text('No important notices'));
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return Center(
+              child: Text(isImportantTab
+                  ? 'No important notices available'
+                  : 'No notices available'));
         }
 
         return ListView.builder(
@@ -156,8 +179,101 @@ class NoticesPage extends StatelessWidget {
   }
 
   void _showCreateNoticeDialog(BuildContext context) {
-    // Implement your notice creation dialog here
-    // Similar to previous examples but using NoticeService
+    final titleController = TextEditingController();
+    final contentController = TextEditingController();
+    bool isImportant = false;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('Create New Notice'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: titleController,
+                    decoration: const InputDecoration(
+                      labelText: 'Title',
+                      hintText: 'Enter notice title',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: contentController,
+                    decoration: const InputDecoration(
+                      labelText: 'Content',
+                      hintText: 'Enter notice content',
+                    ),
+                    maxLines: 5,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: isImportant,
+                        onChanged: (value) {
+                          setState(() {
+                            isImportant = value ?? false;
+                          });
+                        },
+                      ),
+                      const Text('Mark as Important'),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  if (titleController.text.isNotEmpty &&
+                      contentController.text.isNotEmpty) {
+                    try {
+                      await noticeService.createNotice(
+                        title: titleController.text,
+                        content: contentController.text,
+                        isImportant: isImportant,
+                      );
+
+                      // Close dialog
+                      Navigator.pop(context);
+
+                      // Show success message
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('Notice created successfully')));
+
+                      // Refresh notices lists to show the new notice
+                      _refreshNotices();
+
+                      // If we created an important notice and we're not on the important tab,
+                      // switch to it to show the new notice
+                      if (isImportant &&
+                          DefaultTabController.of(context).index == 0) {
+                        DefaultTabController.of(context).animateTo(1);
+                      }
+                    } catch (error) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error: $error')));
+                    }
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text('Please fill all fields')));
+                  }
+                },
+                child: const Text('Create'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 }
 
@@ -166,12 +282,10 @@ class NoticeDetailPage extends StatelessWidget {
 
   const NoticeDetailPage({super.key, required this.notice});
 
-  // Add the missing function to navigate to admin/employee page
   void _navigateToAdminEmployeePage(BuildContext context) {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        // Replace AdminEmployeePage with your actual page class
-        builder: (context) => AdminEmployeePage(),
+        builder: (context) => AdminHomePage(),
       ),
     );
   }
@@ -229,23 +343,5 @@ class NoticeDetailPage extends StatelessWidget {
             ),
           ),
         ));
-  }
-}
-
-// Placeholder class for the Admin/Employee page
-// Replace this with your actual Admin/Employee page implementation
-class AdminEmployeePage extends StatelessWidget {
-  const AdminEmployeePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Admin/Employee Dashboard'),
-      ),
-      body: Center(
-        child: Text('Welcome to the Admin/Employee Dashboard'),
-      ),
-    );
   }
 }
