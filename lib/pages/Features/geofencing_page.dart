@@ -168,7 +168,6 @@ class _GeofencingPageState extends State<GeofencingPage> {
     });
   }
 
-<<<<<<< HEAD
   // Navigate to Admin/Employee page
   void _navigateToAdminEmployeePage() {
     if (!mounted) return;
@@ -180,12 +179,6 @@ class _GeofencingPageState extends State<GeofencingPage> {
         (route) => false, // Remove all routes from stack
       );
     });
-=======
-  void _navigateBack() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => AdminHomePage()),
-    );
->>>>>>> 75795adabd91b45a5fe933627fae82f936387f38
   }
 
   void _checkGeofence(Position position) {
@@ -311,7 +304,6 @@ class _GeofencingPageState extends State<GeofencingPage> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-<<<<<<< HEAD
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _navigateToAdminEmployeePage();
         });
@@ -326,17 +318,6 @@ class _GeofencingPageState extends State<GeofencingPage> {
             onPressed:
                 _navigateToAdminEmployeePage, // Handle back button in app bar explicitly
           ),
-=======
-        _navigateBack();
-        return false;
-      },
-      child: Scaffold(
-        appBar: CustomAppBar(
-          title: "Presence Point",
-          scaffoldKey: _scaffoldKey,
-          showBackButton: true,
-          onBackPressed: _navigateBack,
->>>>>>> 75795adabd91b45a5fe933627fae82f936387f38
         ),
         drawer: CustomDrawer(),
         body: _isLoading
