@@ -5,6 +5,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:presence_point_2/pages/admin_home_page.dart';
+
+// Import your admin/employee page
+// import 'path/to/your/admin_employee_page.dart';
 
 class GeoAttendancePage extends StatefulWidget {
   const GeoAttendancePage({super.key});
@@ -261,81 +265,104 @@ class _GeoAttendancePageState extends State<GeoAttendancePage> {
     return 'Checked in (${duration.inHours}h ${duration.inMinutes.remainder(60)}m)';
   }
 
+  // Navigate to Admin/Employee page
+  void _navigateToAdminEmployeePage() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        // Replace AdminEmployeePage with your actual page class
+        builder: (context) => AdminHomePage(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Geo Attendance'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _startLocationTracking,
-          )
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        children: [
-                          Text(_orgData?['org_name'] ?? 'Office Location',
-                              style: Theme.of(context).textTheme.titleLarge),
-                          const SizedBox(height: 8),
-                          Text(
-                              'Geofence: ${_orgData?['geofencing_radius']?.toStringAsFixed(0) ?? '--'}m radius'),
-                        ],
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+
+        // Navigate to employee/admin page on back button press
+        _navigateToAdminEmployeePage();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Geo Attendance'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _startLocationTracking,
+            )
+          ],
+        ),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          children: [
+                            Text(_orgData?['org_name'] ?? 'Office Location',
+                                style: Theme.of(context).textTheme.titleLarge),
+                            const SizedBox(height: 8),
+                            Text(
+                                'Geofence: ${_orgData?['geofencing_radius']?.toStringAsFixed(0) ?? '--'}m radius'),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        children: [
-                          Text('Current Status',
-                              style: Theme.of(context).textTheme.titleMedium),
-                          const SizedBox(height: 8),
-                          Text(_statusText),
-                          const SizedBox(height: 12),
-                          LinearProgressIndicator(
-                            value: _distanceToOffice /
-                                (_orgData?['geofencing_radius'] ?? 1),
-                            backgroundColor: Colors.grey[200],
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              _distanceToOffice <=
-                                      (_orgData?['geofencing_radius'] ?? 0)
-                                  ? Colors.green
-                                  : Colors.red,
+                    const SizedBox(height: 16),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          children: [
+                            Text('Current Status',
+                                style: Theme.of(context).textTheme.titleMedium),
+                            const SizedBox(height: 8),
+                            Text(_statusText),
+                            const SizedBox(height: 12),
+                            LinearProgressIndicator(
+                              value: _distanceToOffice /
+                                  (_orgData?['geofencing_radius'] ?? 1),
+                              backgroundColor: Colors.grey[200],
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                _distanceToOffice <=
+                                        (_orgData?['geofencing_radius'] ?? 0)
+                                    ? Colors.green
+                                    : Colors.red,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  const Spacer(),
-                  ElevatedButton(
-                    onPressed:
-                        _isCheckedIn ? _performCheckOut : _performCheckIn,
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 50),
-                      backgroundColor: _isCheckedIn ? Colors.red : Colors.green,
+                    const Spacer(),
+                    ElevatedButton(
+                      onPressed:
+                          _isCheckedIn ? _performCheckOut : _performCheckIn,
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 50),
+                        backgroundColor:
+                            _isCheckedIn ? Colors.red : Colors.green,
+                      ),
+                      child: Text(_isCheckedIn ? 'CHECK OUT' : 'CHECK IN',
+                          style: const TextStyle(fontSize: 18)),
                     ),
-                    child: Text(_isCheckedIn ? 'CHECK OUT' : 'CHECK IN',
-                        style: const TextStyle(fontSize: 18)),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
+      ),
     );
   }
 }
+
+// Placeholder class for the Admin/Employee page
+// Replace this with your actual Admin/Employee page implementation
 
 extension DateTimeExtensions on DateTime {
   DateTime get dateOnly => DateTime(year, month, day);
