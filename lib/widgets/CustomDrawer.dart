@@ -4,6 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class CustomDrawer extends StatelessWidget {
   final supabase = Supabase.instance.client;
 
+  CustomDrawer({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Drawer(
@@ -72,7 +74,7 @@ class CustomDrawer extends StatelessWidget {
           ),
           ListTile(
             leading: Icon(Icons.group),
-            title: const Text('Organisation'),
+            title: const Text('Organiszation'),
             onTap: () {
               Navigator.pushReplacementNamed(context, '/neworganisation');
             },
