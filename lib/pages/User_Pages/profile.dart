@@ -6,7 +6,7 @@ import 'package:presence_point_2/widgets/CustomAppBar.dart';
 import 'package:presence_point_2/widgets/CustomDrawer.dart';
 
 class ProfileScreen extends StatefulWidget {
-  static const routeName = '/profile';
+  static const routeName = '/profile'; // 👈 Easy for routing!
 
   const ProfileScreen({Key? key}) : super(key: key);
 

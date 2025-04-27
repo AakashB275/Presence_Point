@@ -9,7 +9,7 @@ import 'package:presence_point_2/widgets/CustomAppBar.dart';
 import 'package:presence_point_2/widgets/CustomDrawer.dart';
 
 class Organization {
-  final int orgId;
+  final String orgId;
   final String orgName;
   final String orgCode;
   final double latitude;
@@ -27,12 +27,12 @@ class Organization {
 
   factory Organization.fromJson(Map<String, dynamic> json) {
     return Organization(
-      orgId: json['org_id'],
+      orgId: json['org_id'].toString(),
       orgName: json['org_name'] ?? 'Unknown Organization',
       orgCode: json['org_code']?.toString() ?? '',
-      latitude: json['latitude'] ?? 0.0,
-      longitude: json['longitude'] ?? 0.0,
-      geofencingRadius: json['geofencing_radius'] ?? 100.0,
+      latitude: json['latitude']?.toDouble() ?? 0.0,
+      longitude: json['longitude']?.toDouble() ?? 0.0,
+      geofencingRadius: json['geofencing_radius']?.toDouble() ?? 100.0,
     );
   }
 }
@@ -55,7 +55,7 @@ class _GeofencingPageState extends State<GeofencingPage> {
   int _durationInSeconds = 0;
   StreamSubscription<Position>? _positionStream;
   Position? _currentPosition;
-  int? _currentAttendanceId;
+  String? _currentAttendanceId;
   Organization? _organization;
   bool _isLoading = true;
 
@@ -78,7 +78,6 @@ class _GeofencingPageState extends State<GeofencingPage> {
 
   Future<void> _loadOrganizationData() async {
     try {
-      // Get current user ID
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) {
         setState(() {
@@ -88,16 +87,14 @@ class _GeofencingPageState extends State<GeofencingPage> {
         return;
       }
 
-      // Fetch user data to get their organization
       final userData = await _supabase
           .from('user')
-          .select('created_at, org_id')
+          .select('org_id')
           .eq('id', userId)
           .single();
 
-      final int orgId = userData['org_id'];
+      final orgId = userData['org_id'].toString();
 
-      // Fetch the organization data
       final response = await _supabase
           .from('organization')
           .select()
@@ -110,7 +107,6 @@ class _GeofencingPageState extends State<GeofencingPage> {
         _isLoading = false;
       });
 
-      // Now that we have org data, request location permissions
       _requestLocationPermission();
     } catch (e) {
       setState(() {
@@ -129,26 +125,20 @@ class _GeofencingPageState extends State<GeofencingPage> {
       return;
     }
 
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    // Check if location services are enabled
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       setState(() {
-        _status =
-            'Location services are disabled. Please enable location services.';
+        _status = 'Location services are disabled. Please enable them.';
       });
       return;
     }
 
-    // Check location permission
-    permission = await Geolocator.checkPermission();
+    LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
         setState(() {
-          _status = 'Location permissions are denied. Cannot use geofencing.';
+          _status = 'Location permissions are denied.';
         });
         return;
       }
@@ -156,20 +146,18 @@ class _GeofencingPageState extends State<GeofencingPage> {
 
     if (permission == LocationPermission.deniedForever) {
       setState(() {
-        _status =
-            'Location permissions are permanently denied. Please enable in settings.';
+        _status = 'Location permissions are permanently denied.';
       });
       return;
     }
 
-    // Start tracking location
     _startLocationTracking();
   }
 
   void _startLocationTracking() {
     const locationSettings = LocationSettings(
       accuracy: LocationAccuracy.high,
-      distanceFilter: 10, // Update every 10 meters
+      distanceFilter: 10,
     );
 
     _positionStream =
@@ -180,6 +168,7 @@ class _GeofencingPageState extends State<GeofencingPage> {
     });
   }
 
+<<<<<<< HEAD
   // Navigate to Admin/Employee page
   void _navigateToAdminEmployeePage() {
     if (!mounted) return;
@@ -191,6 +180,12 @@ class _GeofencingPageState extends State<GeofencingPage> {
         (route) => false, // Remove all routes from stack
       );
     });
+=======
+  void _navigateBack() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (context) => AdminHomePage()),
+    );
+>>>>>>> 75795adabd91b45a5fe933627fae82f936387f38
   }
 
   void _checkGeofence(Position position) {
@@ -206,19 +201,16 @@ class _GeofencingPageState extends State<GeofencingPage> {
     bool wasInGeofence = _isInGeofence;
     _isInGeofence = distance <= _organization!.geofencingRadius;
 
-    // User just entered geofence
     if (_isInGeofence && !wasInGeofence) {
       _checkIn();
-    }
-    // User just exited geofence
-    else if (!_isInGeofence && wasInGeofence) {
+    } else if (!_isInGeofence && wasInGeofence) {
       _checkOut();
     }
 
     setState(() {
       _status = _isInGeofence
-          ? "You are inside ${_organization!.orgName} boundary (${distance.toStringAsFixed(2)}m from center)"
-          : "You are outside ${_organization!.orgName} boundary (${distance.toStringAsFixed(2)}m from center)";
+          ? "Inside ${_organization!.orgName} (${distance.toStringAsFixed(2)}m)"
+          : "Outside ${_organization!.orgName} (${distance.toStringAsFixed(2)}m)";
     });
   }
 
@@ -226,14 +218,12 @@ class _GeofencingPageState extends State<GeofencingPage> {
     _checkInTime = DateTime.now();
     _durationInSeconds = 0;
 
-    // Start timer to measure duration inside geofence
     _durationTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       setState(() {
         _durationInSeconds++;
       });
     });
 
-    // Record check-in to Supabase
     _recordCheckInToSupabase();
   }
 
@@ -241,35 +231,38 @@ class _GeofencingPageState extends State<GeofencingPage> {
     _durationTimer?.cancel();
     _durationTimer = null;
 
-    // Record check-out/duration to Supabase
     if (_checkInTime != null) {
       _recordCheckOutToSupabase();
       _checkInTime = null;
+      // Removed the automatic navigation after checkout
     }
   }
 
   Future<void> _recordCheckInToSupabase() async {
     try {
       final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) {
-        print('User not authenticated');
-        return;
-      }
+      if (userId == null) return;
 
       final response = await _supabase.from('attendance').insert({
         'user_id': userId,
-        'org_id': _organization!.orgId, // Include the org_id
+        'org_id': _organization!.orgId,
         'check_in_time': _checkInTime!.toIso8601String(),
+        'date': DateFormat('yyyy-MM-dd').format(_checkInTime!),
         'check_in_location':
-            '${_currentPosition?.latitude},${_currentPosition?.longitude}',
+            'POINT(${_currentPosition?.longitude} ${_currentPosition?.latitude})',
       }).select();
 
       if (response.isNotEmpty) {
-        _currentAttendanceId = response[0]['id'];
-        print('Check-in recorded successfully with ID: $_currentAttendanceId');
+        setState(() {
+          _currentAttendanceId = response[0]['id'].toString();
+        });
+        print('Check-in recorded successfully. ID: $_currentAttendanceId');
       }
     } catch (e) {
       print('Error recording check-in: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to record check-in: $e')),
+      );
     }
   }
 
@@ -287,15 +280,23 @@ class _GeofencingPageState extends State<GeofencingPage> {
       await _supabase.from('attendance').update({
         'check_out_time': checkOutTime.toIso8601String(),
         'check_out_location':
-            '${_currentPosition?.latitude},${_currentPosition?.longitude}',
+            'POINT(${_currentPosition?.longitude} ${_currentPosition?.latitude})',
         'total_hours': durationHours,
-      }).eq('id', _currentAttendanceId as Object);
+      }).eq('id', _currentAttendanceId!);
 
-      print(
-          'Check-out recorded successfully. Duration: ${durationHours.toStringAsFixed(2)} hours');
-      _currentAttendanceId = null;
+      print('Check-out recorded successfully for ID: $_currentAttendanceId');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Check-out recorded successfully')),
+      );
+
+      setState(() {
+        _currentAttendanceId = null;
+      });
     } catch (e) {
       print('Error recording check-out: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to record check-out: $e')),
+      );
     }
   }
 
@@ -310,6 +311,7 @@ class _GeofencingPageState extends State<GeofencingPage> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
+<<<<<<< HEAD
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _navigateToAdminEmployeePage();
         });
@@ -324,6 +326,17 @@ class _GeofencingPageState extends State<GeofencingPage> {
             onPressed:
                 _navigateToAdminEmployeePage, // Handle back button in app bar explicitly
           ),
+=======
+        _navigateBack();
+        return false;
+      },
+      child: Scaffold(
+        appBar: CustomAppBar(
+          title: "Presence Point",
+          scaffoldKey: _scaffoldKey,
+          showBackButton: true,
+          onBackPressed: _navigateBack,
+>>>>>>> 75795adabd91b45a5fe933627fae82f936387f38
         ),
         drawer: CustomDrawer(),
         body: _isLoading
@@ -332,109 +345,50 @@ class _GeofencingPageState extends State<GeofencingPage> {
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Organization information
                     if (_organization != null) ...[
                       Text(
                         _organization!.orgName,
                         style: const TextStyle(
                             fontSize: 24, fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center,
                       ),
+                      const SizedBox(height: 10),
                       Text(
-                        'Organization Code: ${_organization!.orgCode}',
+                        'Geofence Radius: ${_organization!.geofencingRadius}m',
                         style: const TextStyle(fontSize: 16),
-                        textAlign: TextAlign.center,
-                      ),
-                      Text(
-                        'Geofence Radius: ${_organization!.geofencingRadius.toStringAsFixed(1)} meters',
-                        style: const TextStyle(fontSize: 16),
-                        textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 20),
                     ],
-
-                    // Status icon
                     Icon(
                       _isInGeofence ? Icons.location_on : Icons.location_off,
                       size: 80,
                       color: _isInGeofence ? Colors.green : Colors.red,
                     ),
                     const SizedBox(height: 20),
-
-                    // Status text
                     Text(
                       _status,
-                      textAlign: TextAlign.center,
                       style: const TextStyle(fontSize: 18),
+                      textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 20),
-
-                    // Check-in status
-                    if (_isInGeofence) ...[
-                      const Text(
-                        'Checked in at:',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
+                    if (_isInGeofence && _checkInTime != null) ...[
                       Text(
-                        _checkInTime != null
-                            ? DateFormat('yyyy-MM-dd HH:mm:ss')
-                                .format(_checkInTime!)
-                            : 'Not checked in yet',
+                        'Checked in at: ${DateFormat('HH:mm:ss').format(_checkInTime!)}',
                         style: const TextStyle(fontSize: 16),
                       ),
                       const SizedBox(height: 10),
-                      const Text(
-                        'Duration in organization:',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
                       Text(
-                        _formatDuration(),
+                        'Duration: ${_formatDuration()}',
                         style: const TextStyle(
                             fontSize: 24, fontWeight: FontWeight.bold),
                       ),
                     ],
-
                     const SizedBox(height: 40),
-
-                    // Manual check buttons (for testing)
                     ElevatedButton(
                       onPressed: _currentPosition != null
                           ? () => _checkGeofence(_currentPosition!)
                           : null,
-                      child: const Text('Refresh Location Status'),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Manual check-in/check-out buttons (for backup)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        ElevatedButton(
-                          onPressed: _isInGeofence && _checkInTime == null
-                              ? _checkIn
-                              : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            disabledBackgroundColor: Colors.grey,
-                          ),
-                          child: const Text('Manual Check-In'),
-                        ),
-                        ElevatedButton(
-                          onPressed: _isInGeofence && _checkInTime != null
-                              ? _checkOut
-                              : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            disabledBackgroundColor: Colors.grey,
-                          ),
-                          child: const Text('Manual Check-Out'),
-                        ),
-                      ],
+                      child: const Text('Refresh Location'),
                     ),
 
                     // Extra back button for testing

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:presence_point_2/pages/Admin_Pages/join_admin_page.dart';
 import 'package:presence_point_2/pages/Admin_Pages/org_list_page.dart';
 import 'package:presence_point_2/pages/Features/notices.dart';
 import 'package:presence_point_2/pages/admin_home_page.dart';
@@ -78,7 +77,7 @@ class MyApp extends StatelessWidget {
           '/profile': (context) => ProfileScreen(),
           '/geofencing': (context) => GeoAttendancePage(),
           '/notices': (context) => NoticesPage(),
-          '/team': (context) => AdminEmployeesPage(),
+          '/team': (context) => CombinedAdminPage(),
         },
         onGenerateRoute: (settings) {
           return MaterialPageRoute(
