@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:presence_point_2/pages/admin_home_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -42,6 +43,14 @@ class _GeoAttendancePageState extends State<GeoAttendancePage> {
     _positionStream?.cancel();
     _service.invoke('stopService');
     super.dispose();
+  }
+
+  void _navigateToAdminEmployeePage() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (context) => AdminHomePage(),
+      ),
+    );
   }
 
   Future<void> _initializeApp() async {
@@ -483,102 +492,112 @@ class _GeoAttendancePageState extends State<GeoAttendancePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Geo Attendance'),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _startLocationTracking,
-            tooltip: 'Refresh location',
-          )
-        ],
-      ),
-      body: _isLoading
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Loading attendance data...'),
-                ],
-              ),
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+        _navigateToAdminEmployeePage();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Geo Attendance'),
+          centerTitle: true,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _startLocationTracking,
+              tooltip: 'Refresh location',
             )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  _buildLocationInfo(),
-                  const SizedBox(height: 20),
-                  _buildStatusCard(),
-                  const SizedBox(height: 20),
-                  if (_currentPosition != null) ...[
-                    Card(
-                      elevation: 4,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Location Details',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.bold,
+          ],
+        ),
+        body: _isLoading
+            ? const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Loading attendance data...'),
+                  ],
+                ),
+              )
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    _buildLocationInfo(),
+                    const SizedBox(height: 20),
+                    _buildStatusCard(),
+                    const SizedBox(height: 20),
+                    if (_currentPosition != null) ...[
+                      Card(
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Location Details',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Icon(Icons.my_location,
+                                      color: Colors.grey[600]),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Lat: ${_currentPosition!.latitude.toStringAsFixed(6)}',
+                                    style:
+                                        Theme.of(context).textTheme.bodyMedium,
                                   ),
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Icon(Icons.my_location,
-                                    color: Colors.grey[600]),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Lat: ${_currentPosition!.latitude.toStringAsFixed(6)}',
-                                  style: Theme.of(context).textTheme.bodyMedium,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Icon(Icons.my_location,
-                                    color: Colors.grey[600]),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Lng: ${_currentPosition!.longitude.toStringAsFixed(6)}',
-                                  style: Theme.of(context).textTheme.bodyMedium,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Icon(Icons.speed, color: Colors.grey[600]),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Accuracy: ${_currentPosition!.accuracy.toStringAsFixed(2)}m',
-                                  style: Theme.of(context).textTheme.bodyMedium,
-                                ),
-                              ],
-                            ),
-                          ],
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Icon(Icons.my_location,
+                                      color: Colors.grey[600]),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Lng: ${_currentPosition!.longitude.toStringAsFixed(6)}',
+                                    style:
+                                        Theme.of(context).textTheme.bodyMedium,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Icon(Icons.speed, color: Colors.grey[600]),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Accuracy: ${_currentPosition!.accuracy.toStringAsFixed(2)}m',
+                                    style:
+                                        Theme.of(context).textTheme.bodyMedium,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 20),
+                      const SizedBox(height: 20),
+                    ],
+                    _buildActionButton(),
                   ],
-                  _buildActionButton(),
-                ],
+                ),
               ),
-            ),
+      ),
     );
   }
 }
