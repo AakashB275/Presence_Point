@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../widgets/CustomAppBar.dart';
 import '../widgets/CustomDrawer.dart';
+import '../pages/Admin_Pages/admin_leaves.dart'; // Import the AdminLeavesScreen
 
 class AdminHomePage extends StatefulWidget {
   const AdminHomePage({super.key});
@@ -21,6 +22,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
   int presentToday = 0;
   int absentToday = 0;
   int locationsCount = 0;
+  int pendingLeaves = 0; // New variable for pending leave requests
   String orgName = '';
 
   @override
@@ -51,6 +53,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
         _getPresentTodayCount(orgId),
         _getLocationsCount(orgId),
         _getOrgName(orgId),
+        _getPendingLeavesCount(orgId), // New function call
       ]);
 
       setState(() {
@@ -59,6 +62,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
         absentToday = totalEmployees - presentToday;
         locationsCount = results[2] as int;
         orgName = results[3] as String;
+        pendingLeaves = results[4] as int; // Set pending leaves count
       });
     } catch (e) {
       debugPrint('Error fetching dashboard data: $e');
@@ -67,6 +71,35 @@ class _AdminHomePageState extends State<AdminHomePage> {
       );
     } finally {
       setState(() => _isLoading = false);
+    }
+  }
+
+  // New function to get pending leaves count
+  Future<int> _getPendingLeavesCount(String orgId) async {
+    try {
+      // Get users from this organization
+      final usersResponse = await supabase
+          .from('users')
+          .select('auth_user_id')
+          .eq('org_id', orgId);
+
+      final userIds =
+          List<String>.from(usersResponse.map((user) => user['auth_user_id']));
+
+      // Count pending leave requests for these users
+      if (userIds.isEmpty) return 0;
+
+      final response = await supabase
+          .from('leaves')
+          .select()
+          .contains('user_id', userIds)
+          .eq('status', 'pending')
+          .count();
+
+      return response.count;
+    } catch (e) {
+      debugPrint('Error fetching pending leaves count: $e');
+      return 0;
     }
   }
 
@@ -139,12 +172,24 @@ class _AdminHomePageState extends State<AdminHomePage> {
     }
   }
 
-  // Dynamic stats based on fetched data
+  // Navigate to AdminLeavesScreen
+  void _navigateToLeaveManagement() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => AdminLeavesScreen(),
+      ),
+    );
+  }
+
+  // Dynamic stats based on fetched data - now includes pending leaves
   Map<String, Map<String, dynamic>> get stats => {
         'Total Employees': {'value': '$totalEmployees', 'color': Colors.indigo},
         'Present Today': {'value': '$presentToday', 'color': Colors.green},
         'Absent Today': {'value': '$absentToday', 'color': Colors.red},
-        'Locations': {'value': '$locationsCount', 'color': Colors.orange},
+        'Pending Leaves': {
+          'value': '$pendingLeaves',
+          'color': Colors.amber
+        }, // New stat
       };
 
   @override
@@ -227,6 +272,14 @@ class _AdminHomePageState extends State<AdminHomePage> {
                         color: Colors.green,
                         onTap: () => Navigator.pushNamed(context, '/analytics'),
                       ),
+                      // New card for leave management
+                      _buildActionCard(
+                        title: "Manage Leaves",
+                        icon: Icons.event_busy,
+                        color: Colors.amber,
+                        onTap: _navigateToLeaveManagement,
+                        badge: pendingLeaves > 0 ? pendingLeaves : null,
+                      ),
                       _buildActionCard(
                         title: "Geofence Settings",
                         icon: Icons.location_pin,
@@ -305,11 +358,13 @@ class _AdminHomePageState extends State<AdminHomePage> {
     );
   }
 
+  // Updated to include optional badge for pending items
   Widget _buildActionCard({
     required String title,
     required IconData icon,
     required Color color,
     required VoidCallback onTap,
+    int? badge,
   }) {
     return Card(
       elevation: 2,
@@ -319,31 +374,61 @@ class _AdminHomePageState extends State<AdminHomePage> {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, size: 28, color: color),
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(icon, size: 28, color: color),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey[800],
+            ),
+            // Badge for pending items
+            if (badge != null && badge > 0)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 22,
+                    minHeight: 22,
+                  ),
+                  child: Text(
+                    badge > 9 ? '9+' : '$badge',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               ),
-            ],
-          ),
+          ],
         ),
       ),
     );

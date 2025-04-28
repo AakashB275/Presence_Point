@@ -165,6 +165,12 @@ class _LeavesScreenState extends State<LeavesScreen> {
 
                           Navigator.of(context).pop();
                           _loadLeaveRequests();
+
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text(
+                                    'Leave request submitted successfully')),
+                          );
                         } catch (e) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text('Error: ${e.toString()}')),
@@ -232,21 +238,51 @@ class _LeavesScreenState extends State<LeavesScreen> {
                                       DateTime.parse(leave['applied_at']);
 
                                   return Card(
-                                    margin: EdgeInsets.only(bottom: 8),
-                                    child: ListTile(
-                                      title: Text(
-                                        '${leave['leave_type'].toUpperCase()} Leave',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold),
+                                    margin: EdgeInsets.only(bottom: 12),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(16.0),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                '${leave['leave_type'].toUpperCase()} Leave',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 16,
+                                                ),
+                                              ),
+                                              _getStatusChip(leave['status']),
+                                            ],
+                                          ),
+                                          SizedBox(height: 8),
+                                          Text(
+                                            'From: ${DateFormat('MMM d, yyyy').format(startDate)}',
+                                          ),
+                                          Text(
+                                            'To: ${DateFormat('MMM d, yyyy').format(endDate)}',
+                                          ),
+                                          Text(
+                                            'Applied on: ${DateFormat('MMM d, yyyy').format(appliedAt)}',
+                                          ),
+                                          if (leave['status'] == 'pending')
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                  top: 8.0),
+                                              child: Text(
+                                                'Your request is being reviewed by admin',
+                                                style: TextStyle(
+                                                  fontStyle: FontStyle.italic,
+                                                  color: Colors.grey[600],
+                                                ),
+                                              ),
+                                            ),
+                                        ],
                                       ),
-                                      subtitle: Text(
-                                        'From: ${DateFormat('MMM d, yyyy').format(startDate)}\n'
-                                        'To: ${DateFormat('MMM d, yyyy').format(endDate)}\n'
-                                        'Applied on: ${DateFormat('MMM d, yyyy').format(appliedAt)}\n'
-                                        'Status: ${leave['status'].toUpperCase()}',
-                                      ),
-                                      isThreeLine: true,
-                                      trailing: _getStatusIcon(leave['status']),
                                     ),
                                   );
                                 },
@@ -263,14 +299,32 @@ class _LeavesScreenState extends State<LeavesScreen> {
         ));
   }
 
-  Widget _getStatusIcon(String status) {
+  Widget _getStatusChip(String status) {
+    Color color;
+    IconData icon;
+
     switch (status) {
       case 'approved':
-        return Icon(Icons.check_circle, color: Colors.green);
+        color = Colors.green;
+        icon = Icons.check_circle;
+        break;
       case 'rejected':
-        return Icon(Icons.cancel, color: Colors.red);
+        color = Colors.red;
+        icon = Icons.cancel;
+        break;
       default:
-        return Icon(Icons.hourglass_empty, color: Colors.orange);
+        color = Colors.orange;
+        icon = Icons.hourglass_empty;
     }
+
+    return Chip(
+      avatar: Icon(icon, color: Colors.white, size: 16),
+      label: Text(
+        status.toUpperCase(),
+        style: TextStyle(
+            color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+      ),
+      backgroundColor: color,
+    );
   }
 }

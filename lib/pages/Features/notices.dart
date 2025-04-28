@@ -230,6 +230,14 @@ class _NoticesPageState extends State<NoticesPage> {
     );
   }
 
+  void _navigateToAdminEmployeePage() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (context) => AdminHomePage(),
+      ),
+    );
+  }
+
   void _showCreateNoticeDialog(BuildContext context) {
     final titleController = TextEditingController();
     final contentController = TextEditingController();
@@ -353,6 +361,7 @@ class NoticeDetailPage extends StatelessWidget {
         onPopInvoked: (didPop) {
           if (didPop) return;
 
+          // Navigate to employee/admin page on back button press
           _navigateToAdminEmployeePage(context);
         },
         child: Scaffold(
