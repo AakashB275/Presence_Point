@@ -285,13 +285,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                         icon: Icons.location_pin,
                         color: Colors.orange,
                         onTap: () =>
-                            Navigator.pushNamed(context, '/geofencing'),
-                      ),
-                      _buildActionCard(
-                        title: "System Settings",
-                        icon: Icons.settings,
-                        color: Colors.purple,
-                        onTap: () => Navigator.pushNamed(context, '/settings'),
+                            Navigator.pushNamed(context, '/update-geofence'),
                       ),
                     ],
                   ),
