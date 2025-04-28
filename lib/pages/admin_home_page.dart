@@ -120,20 +120,13 @@ class _AdminHomePageState extends State<AdminHomePage> {
       final startOfDay = DateTime.utc(now.year, now.month, now.day);
       final endOfDay = startOfDay.add(const Duration(days: 1));
 
-      debugPrint('Fetching attendance between:');
-      debugPrint('Start: ${startOfDay.toIso8601String()}');
-      debugPrint('End: ${endOfDay.toIso8601String()}');
-
       final response = await supabase
           .from('attendance')
-          .select('auth_user_id')
+          .select('user_id') // Changed from auth_user_id to user_id
           .eq('org_id', orgId)
           .gte('check_in_time', startOfDay.toIso8601String())
           .lt('check_in_time', endOfDay.toIso8601String())
           .count(CountOption.exact);
-
-      debugPrint('Found ${response.count} records');
-      debugPrint('Data: ${response.data}');
 
       return response.count;
     } catch (e) {
@@ -144,13 +137,14 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
   Future<int> _getLocationsCount(String orgId) async {
     try {
-      final response = await supabase
-          .from('organization') // Try singular form if plural doesn't exist
-          .select('locations_count')
-          .eq('org_id', orgId)
-          .single();
+      // final response = await supabase
+      //     .from('organization')
+      //     .select('locations_count')
+      //     .eq('org_id', orgId)
+      //     .single();
 
-      return response['locations_count'] ?? 0;
+      // return response['locations_count'] ?? 0;
+      return 1;
     } catch (e) {
       debugPrint('Error fetching locations count: $e');
       return 0; // Return default value
