@@ -102,7 +102,6 @@ class _AnalyticsPage extends State<AnalyticsPage> {
   void _navigateToAdminEmployeePage() {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        // Replace AdminEmployeePage with your actual page class
         builder: (context) => AdminHomePage(),
       ),
     );

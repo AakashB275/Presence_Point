@@ -173,6 +173,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
         if (shouldPop ?? false) SystemNavigator.pop();
       },
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         key: _scaffoldKey,
         appBar: CustomAppBar(
           title: "$orgName Dashboard",
@@ -224,7 +225,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                         title: "Attendance Reports",
                         icon: Icons.analytics,
                         color: Colors.green,
-                        onTap: () => Navigator.pushNamed(context, '/reports'),
+                        onTap: () => Navigator.pushNamed(context, '/analytics'),
                       ),
                       _buildActionCard(
                         title: "Geofence Settings",

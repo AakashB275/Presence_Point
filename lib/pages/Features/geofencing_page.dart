@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:presence_point_2/pages/admin_home_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -62,6 +63,10 @@ class _GeofencingPageState extends State<GeofencingPage> {
   void initState() {
     super.initState();
     _loadOrganizationData();
+
+    // Set up back button handling
+    SystemChannels.platform
+        .invokeMethod<void>('SystemNavigator.setSystemUIOverlayStyle', null);
   }
 
   @override
@@ -163,10 +168,17 @@ class _GeofencingPageState extends State<GeofencingPage> {
     });
   }
 
-  void _navigateBack() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => AdminHomePage()),
-    );
+  // Navigate to Admin/Employee page
+  void _navigateToAdminEmployeePage() {
+    if (!mounted) return;
+
+    // Forcefully navigate with replacement to prevent back button from exiting app
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => AdminHomePage()),
+        (route) => false, // Remove all routes from stack
+      );
+    });
   }
 
   void _checkGeofence(Position position) {
@@ -292,15 +304,20 @@ class _GeofencingPageState extends State<GeofencingPage> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        _navigateBack();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _navigateToAdminEmployeePage();
+        });
         return false;
       },
       child: Scaffold(
-        appBar: CustomAppBar(
-          title: "Presence Point",
-          scaffoldKey: _scaffoldKey,
-          showBackButton: true,
-          onBackPressed: _navigateBack,
+        key: _scaffoldKey,
+        appBar: AppBar(
+          title: const Text("Presence Point"),
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back),
+            onPressed:
+                _navigateToAdminEmployeePage, // Handle back button in app bar explicitly
+          ),
         ),
         drawer: CustomDrawer(),
         body: _isLoading
@@ -353,6 +370,13 @@ class _GeofencingPageState extends State<GeofencingPage> {
                           ? () => _checkGeofence(_currentPosition!)
                           : null,
                       child: const Text('Refresh Location'),
+                    ),
+
+                    // Extra back button for testing
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: _navigateToAdminEmployeePage,
+                      child: const Text('Back to Admin Home'),
                     ),
                   ],
                 ),
