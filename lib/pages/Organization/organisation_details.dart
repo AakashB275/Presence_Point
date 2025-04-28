@@ -9,6 +9,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'package:presence_point_2/widgets/CustomAppBar.dart';
 import 'package:presence_point_2/services/user_state.dart';
+import 'package:flutter/services.dart'; // For clipboard functionality
+import 'package:share_plus/share_plus.dart'; // For sharing functionality
 
 class OrganisationDetails extends StatefulWidget {
   const OrganisationDetails({super.key});
@@ -29,6 +31,7 @@ class _OrganisationDetailsState extends State<OrganisationDetails> {
   double? _geofencingRadius;
   final supabase = Supabase.instance.client;
   final Random _random = Random();
+  String? _createdOrgCode;
 
   @override
   void initState() {
@@ -54,7 +57,6 @@ class _OrganisationDetailsState extends State<OrganisationDetails> {
   void _navigateToAdminEmployeePage() {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        // Replace AdminEmployeePage with your actual page class
         builder: (context) => AdminHomePage(),
       ),
     );
@@ -117,12 +119,16 @@ class _OrganisationDetailsState extends State<OrganisationDetails> {
       // 2. Validate organization name
       await _validateOrganizationName(_orgNameController.text.trim());
 
-      // 3. Create organization using auth.user_id directly
+      // 3. Generate unique organization code
+      String orgCode = await _generateUniqueOrgCode();
+      _createdOrgCode = orgCode;
+
+      // 4. Create organization using auth.user_id directly
       final orgData = {
         'org_name': _orgNameController.text.trim(),
         'createdby': currentUser.id, // Using auth.user_id directly
         'totaluser': 1,
-        'org_code': await _generateUniqueOrgCode(),
+        'org_code': orgCode,
         'latitude': _latitude,
         'longitude': _longitude,
         'geofencing_radius': _geofencingRadius ?? 200.0,
@@ -134,7 +140,7 @@ class _OrganisationDetailsState extends State<OrganisationDetails> {
           .select('org_id')
           .single();
 
-      // 4. Update user's org_id and role
+      // 5. Update user's org_id and role
       await supabase.from('users').update({
         'org_id': response['org_id'],
         'role': 'admin',
@@ -145,15 +151,113 @@ class _OrganisationDetailsState extends State<OrganisationDetails> {
       Provider.of<UserState>(context, listen: false).joinOrganization(
         orgId: response['org_id'].toString(),
         orgName: _orgNameController.text.trim(),
-        orgCode: orgData['org_code'].toString(),
+        orgCode: orgCode,
       );
 
       _showSuccessToast("Organization created successfully!");
-      _navigateToHome();
+
+      // Show dialog with organization code
+      if (mounted) {
+        _showOrgCodeDialog(orgCode, _orgNameController.text.trim());
+      }
     } catch (e) {
       _handleError("Failed to create organization: ${e.toString()}");
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showOrgCodeDialog(String orgCode, String orgName) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Organization Created!'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                    'Your organization "$orgName" has been created successfully.'),
+                const SizedBox(height: 16),
+                const Text(
+                  'Organization Code:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        orgCode,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.copy),
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: orgCode));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Code copied to clipboard'),
+                              duration: Duration(seconds: 1),
+                            ),
+                          );
+                        },
+                        tooltip: 'Copy code',
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Share this code with members who need to join your organization.',
+                  style: TextStyle(fontStyle: FontStyle.italic),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Share.share(
+                  'Join my organization "$orgName" on Presence Point. Use code: $orgCode',
+                  subject: 'Join My Organization on Presence Point',
+                );
+              },
+              child: const Text('SHARE'),
+            ),
+            TextButton(
+              onPressed: () {
+                // Save code to preferences for future reference
+                _saveOrgCodeToPreferences(orgCode);
+                Navigator.of(context).pop();
+                _navigateToHome();
+              },
+              child: const Text('CONTINUE'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _saveOrgCodeToPreferences(String orgCode) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('org_code', orgCode);
+    } catch (e) {
+      debugPrint('Failed to save org code: $e');
     }
   }
 
