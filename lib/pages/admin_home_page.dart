@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../widgets/CustomAppBar.dart';
 import '../widgets/CustomDrawer.dart';
-import '../pages/Admin_Pages/admin_leaves.dart'; // Import the AdminLeavesScreen
+import '../pages/Admin_Pages/admin_leaves.dart';
 
 class AdminHomePage extends StatefulWidget {
   const AdminHomePage({super.key});
@@ -22,7 +22,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
   int presentToday = 0;
   int absentToday = 0;
   int locationsCount = 0;
-  int pendingLeaves = 0; // New variable for pending leave requests
+  int pendingLeaves = 0;
   String orgName = '';
 
   @override
@@ -53,7 +53,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
         _getPresentTodayCount(orgId),
         _getLocationsCount(orgId),
         _getOrgName(orgId),
-        _getPendingLeavesCount(orgId), // New function call
+        _getPendingLeavesCount(orgId),
       ]);
 
       setState(() {
@@ -62,7 +62,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
         absentToday = totalEmployees - presentToday;
         locationsCount = results[2] as int;
         orgName = results[3] as String;
-        pendingLeaves = results[4] as int; // Set pending leaves count
+        pendingLeaves = results[4] as int;
       });
     } catch (e) {
       debugPrint('Error fetching dashboard data: $e');
@@ -74,7 +74,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
     }
   }
 
-  // New function to get pending leaves count
   Future<int> _getPendingLeavesCount(String orgId) async {
     try {
       // Get users from this organization
@@ -122,7 +121,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
       final response = await supabase
           .from('attendance')
-          .select('user_id') // Changed from auth_user_id to user_id
+          .select('user_id')
           .eq('org_id', orgId)
           .gte('check_in_time', startOfDay.toIso8601String())
           .lt('check_in_time', endOfDay.toIso8601String())
@@ -137,24 +136,17 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
   Future<int> _getLocationsCount(String orgId) async {
     try {
-      // final response = await supabase
-      //     .from('organization')
-      //     .select('locations_count')
-      //     .eq('org_id', orgId)
-      //     .single();
-
-      // return response['locations_count'] ?? 0;
       return 1;
     } catch (e) {
       debugPrint('Error fetching locations count: $e');
-      return 0; // Return default value
+      return 0;
     }
   }
 
   Future<String> _getOrgName(String orgId) async {
     try {
       final response = await supabase
-          .from('organization') // Try singular form
+          .from('organization')
           .select('org_name')
           .eq('org_id', orgId)
           .single();
@@ -162,11 +154,10 @@ class _AdminHomePageState extends State<AdminHomePage> {
       return response['org_name'] ?? 'Organization';
     } catch (e) {
       debugPrint('Error fetching organization name: $e');
-      return 'Organization'; // Fallback name
+      return 'Organization';
     }
   }
 
-  // Navigate to AdminLeavesScreen
   void _navigateToLeaveManagement() {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -175,15 +166,11 @@ class _AdminHomePageState extends State<AdminHomePage> {
     );
   }
 
-  // Dynamic stats based on fetched data - now includes pending leaves
   Map<String, Map<String, dynamic>> get stats => {
         'Total Employees': {'value': '$totalEmployees', 'color': Colors.indigo},
         'Present Today': {'value': '$presentToday', 'color': Colors.green},
         'Absent Today': {'value': '$absentToday', 'color': Colors.red},
-        'Pending Leaves': {
-          'value': '$pendingLeaves',
-          'color': Colors.amber
-        }, // New stat
+        'Pending Leaves': {'value': '$pendingLeaves', 'color': Colors.amber},
       };
 
   @override
@@ -220,74 +207,90 @@ class _AdminHomePageState extends State<AdminHomePage> {
         ),
         drawer: CustomDrawer(),
         body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "$orgName Dashboard",
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.indigo,
-                  ),
+          // Use custom scroll view to properly handle the content
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : CustomScrollView(
+                  slivers: [
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "$orgName Dashboard",
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.indigo,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            _buildStatsRow(),
+                            const SizedBox(height: 24),
+                            const Text(
+                              "Quick Actions",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            // Replace Expanded with a fixed height container
+                            SizedBox(
+                              height: 280, // Fixed height for the grid
+                              child: GridView.count(
+                                physics: const NeverScrollableScrollPhysics(),
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 16,
+                                crossAxisSpacing: 16,
+                                childAspectRatio: 1.2,
+                                children: [
+                                  _buildActionCard(
+                                    title: "Manage Team",
+                                    icon: Icons.people_alt,
+                                    color: Colors.indigo,
+                                    onTap: () =>
+                                        Navigator.pushNamed(context, '/team'),
+                                  ),
+                                  _buildActionCard(
+                                    title: "Attendance Reports",
+                                    icon: Icons.analytics,
+                                    color: Colors.green,
+                                    onTap: () => Navigator.pushNamed(
+                                        context, '/analytics'),
+                                  ),
+                                  _buildActionCard(
+                                    title: "Manage Leaves",
+                                    icon: Icons.event_busy,
+                                    color: Colors.amber,
+                                    onTap: _navigateToLeaveManagement,
+                                    badge: pendingLeaves > 0
+                                        ? pendingLeaves
+                                        : null,
+                                  ),
+                                  _buildActionCard(
+                                    title: "Geofence Settings",
+                                    icon: Icons.location_pin,
+                                    color: Colors.orange,
+                                    onTap: () => Navigator.pushNamed(
+                                        context, '/update-geofence'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Add a spacer to push sign out button to bottom
+                            const Spacer(),
+                            _buildSignOutButton(),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _buildStatsRow(),
-                const SizedBox(height: 24),
-                const Text(
-                  "Quick Actions",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Expanded(
-                  child: GridView.count(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 16,
-                    crossAxisSpacing: 16,
-                    childAspectRatio: 1.2,
-                    children: [
-                      _buildActionCard(
-                        title: "Manage Team",
-                        icon: Icons.people_alt,
-                        color: Colors.indigo,
-                        onTap: () => Navigator.pushNamed(context, '/team'),
-                      ),
-                      _buildActionCard(
-                        title: "Attendance Reports",
-                        icon: Icons.analytics,
-                        color: Colors.green,
-                        onTap: () => Navigator.pushNamed(context, '/analytics'),
-                      ),
-                      // New card for leave management
-                      _buildActionCard(
-                        title: "Manage Leaves",
-                        icon: Icons.event_busy,
-                        color: Colors.amber,
-                        onTap: _navigateToLeaveManagement,
-                        badge: pendingLeaves > 0 ? pendingLeaves : null,
-                      ),
-                      _buildActionCard(
-                        title: "Geofence Settings",
-                        icon: Icons.location_pin,
-                        color: Colors.orange,
-                        onTap: () =>
-                            Navigator.pushNamed(context, '/update-geofence'),
-                      ),
-                    ],
-                  ),
-                ),
-                _buildSignOutButton(),
-              ],
-            ),
-          ),
         ),
         floatingActionButton: FloatingActionButton(
           onPressed: _fetchDashboardData,
@@ -346,7 +349,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
     );
   }
 
-  // Updated to include optional badge for pending items
   Widget _buildActionCard({
     required String title,
     required IconData icon,
@@ -390,14 +392,13 @@ class _AdminHomePageState extends State<AdminHomePage> {
                 ],
               ),
             ),
-            // Badge for pending items
             if (badge != null && badge > 0)
               Positioned(
                 top: 8,
                 right: 8,
                 child: Container(
                   padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: Colors.red,
                     shape: BoxShape.circle,
                   ),
