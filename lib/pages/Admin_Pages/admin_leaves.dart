@@ -24,19 +24,41 @@ class _AdminLeavesScreenState extends State<AdminLeavesScreen> {
     });
 
     try {
-      // Fetch all leave requests with user information
-      final response = await supabase.from('leaves').select('''
-            *,
-            profiles:user_id (
-              full_name, 
-              email
-            )
-          ''').order('applied_at', ascending: false);
+      // Fetch all leave requests
+      final leaveResponse = await supabase
+          .from('leaves')
+          .select('*')
+          .order('applied_at', ascending: false);
+
+      List<Map<String, dynamic>> leaveRequests =
+          List<Map<String, dynamic>>.from(leaveResponse);
+
+      // For each leave request, fetch the corresponding user info
+      for (var leave in leaveRequests) {
+        try {
+          // Use .select() instead of .single() to handle cases with no matching rows
+          final userResponse = await supabase
+              .from('users')
+              .select('email, name')
+              .eq('auth_user_id', leave['user_id']);
+
+          // Check if we got any results
+          if (userResponse != null && userResponse.isNotEmpty) {
+            leave['user_info'] = userResponse.first;
+          } else {
+            leave['user_info'] = {'name': 'Unknown', 'email': ''};
+          }
+        } catch (e) {
+          leave['user_info'] = {'name': 'Unknown', 'email': ''};
+          debugPrint('Error fetching user info: $e');
+        }
+      }
 
       setState(() {
-        _leaveRequests = List<Map<String, dynamic>>.from(response);
+        _leaveRequests = leaveRequests;
       });
     } catch (e) {
+      debugPrint('Error loading leave requests: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content: Text('Error loading leave requests: ${e.toString()}')),
@@ -48,24 +70,40 @@ class _AdminLeavesScreenState extends State<AdminLeavesScreen> {
     }
   }
 
+  // Find the leave object in our local list rather than querying the database again
   Future<void> _updateLeaveStatus(String leaveId, String status) async {
     try {
       setState(() {
         _isLoading = true;
       });
 
-      // Update the leave status in the database
-      await supabase
-          .from('leaves')
-          .update({'status': status}).eq('id', leaveId);
+      // Find the leave in our local data
+      final leaveIndex =
+          _leaveRequests.indexWhere((leave) => leave['id'] == leaveId);
 
-      // Reload the leave requests to reflect the changes
-      await _loadAllLeaveRequests();
+      if (leaveIndex >= 0) {
+        // Update using a direct SQL statement via RPC
+        await supabase.rpc(
+          'safe_update_leave_status',
+          params: {
+            'p_leave_id': leaveId,
+            'p_status': status,
+          },
+        );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Leave request $status successfully')),
-      );
+        // Update our local data too
+        setState(() {
+          _leaveRequests[leaveIndex]['status'] = status;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Leave request $status successfully')),
+        );
+      } else {
+        throw Exception('Leave not found with ID: $leaveId');
+      }
     } catch (e) {
+      debugPrint('Error updating leave status: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error updating leave status: ${e.toString()}')),
       );
@@ -73,6 +111,9 @@ class _AdminLeavesScreenState extends State<AdminLeavesScreen> {
       setState(() {
         _isLoading = false;
       });
+
+      // Reload the leave requests to ensure we have the latest data
+      await _loadAllLeaveRequests();
     }
   }
 
@@ -110,10 +151,15 @@ class _AdminLeavesScreenState extends State<AdminLeavesScreen> {
                               final endDate = DateTime.parse(leave['end_date']);
                               final appliedAt =
                                   DateTime.parse(leave['applied_at']);
-                              final userProfile = leave['profiles'] ?? {};
-                              final userName =
-                                  userProfile['full_name'] ?? 'Unknown';
-                              final userEmail = userProfile['email'] ?? '';
+
+                              // Access user info correctly
+                              final userInfo = leave['user_info'] ?? {};
+                              final userName = userInfo['name'] ?? 'Unknown';
+                              final userEmail = userInfo['email'] ?? '';
+
+                              // Calculate leave duration in days
+                              final leaveDuration =
+                                  endDate.difference(startDate).inDays + 1;
 
                               return Card(
                                 margin: EdgeInsets.only(bottom: 16),
@@ -153,8 +199,17 @@ class _AdminLeavesScreenState extends State<AdminLeavesScreen> {
                                         'To: ${DateFormat('MMM d, yyyy').format(endDate)}',
                                       ),
                                       Text(
+                                        'Duration: $leaveDuration days',
+                                      ),
+                                      Text(
                                         'Applied on: ${DateFormat('MMM d, yyyy').format(appliedAt)}',
                                       ),
+                                      if (leave['leaves_remaining'] != null)
+                                        Text(
+                                          'Leaves Remaining: ${leave['leaves_remaining']}',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w500),
+                                        ),
                                       SizedBox(height: 16),
                                       // Only show action buttons for pending requests
                                       if (leave['status'] == 'pending')
