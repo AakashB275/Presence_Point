@@ -5,10 +5,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:presence_point_2/pages/admin_home_page.dart';
-
-// Import your admin/employee page
-// import 'path/to/your/admin_employee_page.dart';
 
 class GeoAttendancePage extends StatefulWidget {
   const GeoAttendancePage({super.key});
@@ -121,21 +117,30 @@ class _GeoAttendancePageState extends State<GeoAttendancePage> {
 
     if (_isCheckedIn && distance > _orgData!['geofencing_radius']) {
       await _performCheckOut();
-      _showNotification('Auto Check-Out', 'Left office premises');
+      _showNotification('Auto Check-Out', 'You left the office premises');
     }
   }
 
-  // Proper geography point formatting for Supabase
   String _toPostgisPoint(Position position) {
-    return 'SRID=4326;POINT(${position.longitude} ${position.latitude})';
+    return 'POINT(${position.latitude} ${position.longitude})';
   }
 
   Future<void> _performCheckIn() async {
-    if (_currentPosition == null || _orgData == null) return;
+    if (_currentPosition == null ||
+        _orgData == null ||
+        _supabase.auth.currentUser == null) return;
 
     setState(() => _isLoading = true);
     try {
       final now = DateTime.now().toUtc();
+
+      await _supabase.from('attendance').insert({
+        'user_id': _supabase.auth.currentUser!.id,
+        'org_id': _orgData!['org_id'],
+        'check_in_time': now.toIso8601String(),
+        'check_in_location': _toPostgisPoint(_currentPosition!),
+        'date': now.dateOnly.toIso8601String(),
+      });
 
       setState(() {
         _isCheckedIn = true;
@@ -143,16 +148,20 @@ class _GeoAttendancePageState extends State<GeoAttendancePage> {
       });
 
       await _service.startService();
-      _showNotification('Check-In Successful', 'Attendance recorded');
+      _showNotification(
+          'Check-In Successful', 'Your attendance has been recorded');
     } catch (e) {
       _handleError('Check-in failed', e);
+      setState(() => _isCheckedIn = false);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _performCheckOut() async {
-    if (!_isCheckedIn || _currentPosition == null) return;
+    if (!_isCheckedIn ||
+        _currentPosition == null ||
+        _supabase.auth.currentUser == null) return;
 
     setState(() => _isLoading = true);
     try {
@@ -174,7 +183,8 @@ class _GeoAttendancePageState extends State<GeoAttendancePage> {
       });
 
       _service.invoke('stopService');
-      _showNotification('Check-Out Successful', 'Attendance completed');
+      _showNotification(
+          'Check-Out Successful', 'Your attendance has been completed');
     } catch (e) {
       _handleError('Check-out failed', e);
     } finally {
@@ -193,11 +203,30 @@ class _GeoAttendancePageState extends State<GeoAttendancePage> {
 
   Future<bool> _requestPermissions() async {
     final status = await Permission.location.request();
-    if (!status.isGranted) {
-      _handleError('Permission required', 'Location permission denied');
+    if (status.isDenied || status.isPermanentlyDenied) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Permission Required'),
+            content: const Text(
+                'Location permission is required for attendance tracking'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => openAppSettings(),
+                child: const Text('Open Settings'),
+              ),
+            ],
+          ),
+        );
+      }
       return false;
     }
-    return true;
+    return status.isGranted;
   }
 
   Future<void> _initBackgroundService() async {
@@ -220,13 +249,26 @@ class _GeoAttendancePageState extends State<GeoAttendancePage> {
 
   @pragma('vm:entry-point')
   static Future<void> _onBackgroundServiceStart(ServiceInstance service) async {
+    final locationSettings = LocationSettings(
+      accuracy: LocationAccuracy.bestForNavigation,
+      distanceFilter: 10,
+    );
+
+    final positionStream = Geolocator.getPositionStream(
+      locationSettings: locationSettings,
+    ).listen((position) {
+      service.invoke('updateLocation', position.toJson());
+    });
+
     if (service is AndroidServiceInstance) {
       service.setForegroundNotificationInfo(
         title: "Attendance Tracking",
         content: "Monitoring your location",
       );
     }
+
     service.on('stopService').listen((event) {
+      positionStream.cancel();
       service.stopSelf();
     });
   }
@@ -243,6 +285,8 @@ class _GeoAttendancePageState extends State<GeoAttendancePage> {
       'Attendance Notifications',
       importance: Importance.high,
       priority: Priority.high,
+      ticker: 'ticker',
+      styleInformation: BigTextStyleInformation(''),
     );
     await _notifications.show(
         0, title, body, const NotificationDetails(android: android));
@@ -255,114 +299,289 @@ class _GeoAttendancePageState extends State<GeoAttendancePage> {
 
   String get _statusText {
     if (!_isCheckedIn) {
-      return _distanceToOffice <= _orgData?['geofencing_radius']
-          ? 'Ready to check-in'
-          : 'Move closer to office (${_distanceToOffice.toStringAsFixed(0)}m away)';
+      return _distanceToOffice <=
+              (_orgData?['geofencing_radius'] ?? double.infinity)
+          ? 'You can check-in now'
+          : 'You need to be within ${_orgData?['geofencing_radius']?.toStringAsFixed(0)}m to check-in (${_distanceToOffice.toStringAsFixed(0)}m away)';
     }
     final duration = _checkInTime != null
         ? DateTime.now().difference(_checkInTime!)
         : Duration.zero;
-    return 'Checked in (${duration.inHours}h ${duration.inMinutes.remainder(60)}m)';
+    return 'Checked in for ${duration.inHours}h ${duration.inMinutes.remainder(60)}m';
   }
 
-  // Navigate to Admin/Employee page
-  void _navigateToAdminEmployeePage() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        // Replace AdminEmployeePage with your actual page class
-        builder: (context) => AdminHomePage(),
+  Widget _buildLocationInfo() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.business, color: Theme.of(context).primaryColor),
+                const SizedBox(width: 8),
+                Text(
+                  _orgData?['org_name'] ?? 'Office Location',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(Icons.location_on, color: Colors.grey[600]),
+                const SizedBox(width: 8),
+                Text(
+                  'Geofence radius: ${_orgData?['geofencing_radius']?.toStringAsFixed(0) ?? '--'} meters',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (_currentPosition != null) ...[
+              Row(
+                children: [
+                  Icon(Icons.gps_fixed, color: Colors.grey[600]),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Current distance: ${_distanceToOffice.toStringAsFixed(0)} meters',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusCard() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Attendance Status',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: _isCheckedIn
+                    ? Colors.green.withOpacity(0.1)
+                    : Colors.blue.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: _isCheckedIn ? Colors.green : Colors.blue,
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _isCheckedIn ? Icons.check_circle : Icons.info,
+                    color: _isCheckedIn ? Colors.green : Colors.blue,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _statusText,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: _isCheckedIn ? Colors.green : Colors.blue,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            LinearProgressIndicator(
+              value: _distanceToOffice / (_orgData?['geofencing_radius'] ?? 1),
+              backgroundColor: Colors.grey[200],
+              valueColor: AlwaysStoppedAnimation<Color>(
+                _distanceToOffice <= (_orgData?['geofencing_radius'] ?? 0)
+                    ? Colors.green
+                    : Colors.red,
+              ),
+              minHeight: 8,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '0m',
+                  style: Theme.of(context).textTheme.labelSmall,
+                ),
+                Text(
+                  '${_orgData?['geofencing_radius']?.toStringAsFixed(0) ?? '--'}m',
+                  style: Theme.of(context).textTheme.labelSmall,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: _isLoading
+            ? null
+            : _isCheckedIn
+                ? _performCheckOut
+                : _performCheckIn,
+        style: ElevatedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          backgroundColor: _isCheckedIn ? Colors.red : Colors.green,
+          disabledBackgroundColor: Colors.grey[400],
+        ),
+        child: _isLoading
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
+            : Text(
+                _isCheckedIn ? 'CHECK OUT' : 'CHECK IN',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvoked: (didPop) {
-        if (didPop) return;
-
-        // Navigate to employee/admin page on back button press
-        _navigateToAdminEmployeePage();
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Geo Attendance'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: _startLocationTracking,
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Geo Attendance'),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _startLocationTracking,
+            tooltip: 'Refresh location',
+          )
+        ],
+      ),
+      body: _isLoading
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Loading attendance data...'),
+                ],
+              ),
             )
-          ],
-        ),
-        body: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  _buildLocationInfo(),
+                  const SizedBox(height: 20),
+                  _buildStatusCard(),
+                  const SizedBox(height: 20),
+                  if (_currentPosition != null) ...[
                     Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          children: [
-                            Text(_orgData?['org_name'] ?? 'Office Location',
-                                style: Theme.of(context).textTheme.titleLarge),
-                            const SizedBox(height: 8),
-                            Text(
-                                'Geofence: ${_orgData?['geofencing_radius']?.toStringAsFixed(0) ?? '--'}m radius'),
-                          ],
-                        ),
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Current Status',
-                                style: Theme.of(context).textTheme.titleMedium),
-                            const SizedBox(height: 8),
-                            Text(_statusText),
+                            Text(
+                              'Location Details',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                            ),
                             const SizedBox(height: 12),
-                            LinearProgressIndicator(
-                              value: _distanceToOffice /
-                                  (_orgData?['geofencing_radius'] ?? 1),
-                              backgroundColor: Colors.grey[200],
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                _distanceToOffice <=
-                                        (_orgData?['geofencing_radius'] ?? 0)
-                                    ? Colors.green
-                                    : Colors.red,
-                              ),
+                            Row(
+                              children: [
+                                Icon(Icons.my_location,
+                                    color: Colors.grey[600]),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Lat: ${_currentPosition!.latitude.toStringAsFixed(6)}',
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Icon(Icons.my_location,
+                                    color: Colors.grey[600]),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Lng: ${_currentPosition!.longitude.toStringAsFixed(6)}',
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Icon(Icons.speed, color: Colors.grey[600]),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Accuracy: ${_currentPosition!.accuracy.toStringAsFixed(2)}m',
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
+                              ],
                             ),
                           ],
                         ),
                       ),
                     ),
-                    const Spacer(),
-                    ElevatedButton(
-                      onPressed:
-                          _isCheckedIn ? _performCheckOut : _performCheckIn,
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size(double.infinity, 50),
-                        backgroundColor:
-                            _isCheckedIn ? Colors.red : Colors.green,
-                      ),
-                      child: Text(_isCheckedIn ? 'CHECK OUT' : 'CHECK IN',
-                          style: const TextStyle(fontSize: 18)),
-                    ),
+                    const SizedBox(height: 20),
                   ],
-                ),
+                  _buildActionButton(),
+                ],
               ),
-      ),
+            ),
     );
   }
 }
-
-// Placeholder class for the Admin/Employee page
-// Replace this with your actual Admin/Employee page implementation
 
 extension DateTimeExtensions on DateTime {
   DateTime get dateOnly => DateTime(year, month, day);
