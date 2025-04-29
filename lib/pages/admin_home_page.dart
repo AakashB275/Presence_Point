@@ -22,7 +22,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
   int presentToday = 0;
   int absentToday = 0;
   int locationsCount = 0;
-  int pendingLeaves = 0;
   String orgName = '';
 
   @override
@@ -53,7 +52,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
         _getPresentTodayCount(orgId),
         _getLocationsCount(orgId),
         _getOrgName(orgId),
-        _getPendingLeavesCount(orgId),
       ]);
 
       setState(() {
@@ -62,7 +60,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
         absentToday = totalEmployees - presentToday;
         locationsCount = results[2] as int;
         orgName = results[3] as String;
-        pendingLeaves = results[4] as int;
       });
     } catch (e) {
       debugPrint('Error fetching dashboard data: $e');
@@ -71,34 +68,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
       );
     } finally {
       setState(() => _isLoading = false);
-    }
-  }
-
-  Future<int> _getPendingLeavesCount(String orgId) async {
-    try {
-      // Get users from this organization
-      final usersResponse = await supabase
-          .from('users')
-          .select('auth_user_id')
-          .eq('org_id', orgId);
-
-      final userIds =
-          List<String>.from(usersResponse.map((user) => user['auth_user_id']));
-
-      // Count pending leave requests for these users
-      if (userIds.isEmpty) return 0;
-
-      final response = await supabase
-          .from('leaves')
-          .select()
-          .contains('user_id', userIds)
-          .eq('status', 'pending')
-          .count();
-
-      return response.count;
-    } catch (e) {
-      debugPrint('Error fetching pending leaves count: $e');
-      return 0;
     }
   }
 
@@ -170,7 +139,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
         'Total Employees': {'value': '$totalEmployees', 'color': Colors.indigo},
         'Present Today': {'value': '$presentToday', 'color': Colors.green},
         'Absent Today': {'value': '$absentToday', 'color': Colors.red},
-        'Pending Leaves': {'value': '$pendingLeaves', 'color': Colors.amber},
       };
 
   @override
@@ -202,94 +170,100 @@ class _AdminHomePageState extends State<AdminHomePage> {
         resizeToAvoidBottomInset: false,
         key: _scaffoldKey,
         appBar: CustomAppBar(
-          title: "$orgName Dashboard",
+          title: "${orgName.isNotEmpty ? orgName : 'Organization'} Dashboard",
           scaffoldKey: _scaffoldKey,
         ),
         drawer: CustomDrawer(),
         body: SafeArea(
-          // Use custom scroll view to properly handle the content
           child: _isLoading
               ? const Center(child: CircularProgressIndicator())
-              : CustomScrollView(
-                  slivers: [
-                    SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "$orgName Dashboard",
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.indigo,
-                              ),
+              : RefreshIndicator(
+                  onRefresh: _fetchDashboardData,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "${orgName.isNotEmpty ? orgName : 'Organization'} Dashboard",
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.indigo,
                             ),
-                            const SizedBox(height: 16),
-                            _buildStatsRow(),
-                            const SizedBox(height: 24),
-                            const Text(
-                              "Quick Actions",
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey,
-                              ),
+                          ),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            height: 100,
+                            child: _buildStatsRow(),
+                          ),
+                          const SizedBox(height: 24),
+                          const Text(
+                            "Quick Actions",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey,
                             ),
-                            const SizedBox(height: 16),
-                            // Replace Expanded with a fixed height container
-                            SizedBox(
-                              height: 280, // Fixed height for the grid
-                              child: GridView.count(
-                                physics: const NeverScrollableScrollPhysics(),
-                                crossAxisCount: 2,
-                                mainAxisSpacing: 16,
-                                crossAxisSpacing: 16,
-                                childAspectRatio: 1.2,
-                                children: [
-                                  _buildActionCard(
-                                    title: "Manage Team",
-                                    icon: Icons.people_alt,
-                                    color: Colors.indigo,
-                                    onTap: () =>
-                                        Navigator.pushNamed(context, '/team'),
-                                  ),
-                                  _buildActionCard(
-                                    title: "Attendance Reports",
-                                    icon: Icons.analytics,
-                                    color: Colors.green,
-                                    onTap: () => Navigator.pushNamed(
-                                        context, '/analytics'),
-                                  ),
-                                  _buildActionCard(
-                                    title: "Manage Leaves",
-                                    icon: Icons.event_busy,
-                                    color: Colors.amber,
-                                    onTap: _navigateToLeaveManagement,
-                                    badge: pendingLeaves > 0
-                                        ? pendingLeaves
-                                        : null,
-                                  ),
-                                  _buildActionCard(
-                                    title: "Geofence Settings",
-                                    icon: Icons.location_pin,
-                                    color: Colors.orange,
-                                    onTap: () => Navigator.pushNamed(
-                                        context, '/update-geofence'),
-                                  ),
-                                ],
+                          ),
+                          const SizedBox(height: 16),
+                          Wrap(
+                            spacing: 16,
+                            runSpacing: 16,
+                            children: [
+                              SizedBox(
+                                width: (MediaQuery.of(context).size.width / 2) -
+                                    24,
+                                child: _buildActionCard(
+                                  title: "Manage Team Members",
+                                  icon: Icons.people_alt,
+                                  color: Colors.indigo,
+                                  onTap: () =>
+                                      Navigator.pushNamed(context, '/team'),
+                                ),
                               ),
-                            ),
-                            // Add a spacer to push sign out button to bottom
-                            const Spacer(),
-                            _buildSignOutButton(),
-                          ],
-                        ),
+                              SizedBox(
+                                width: (MediaQuery.of(context).size.width / 2) -
+                                    24,
+                                child: _buildActionCard(
+                                  title: "Attendance Reports",
+                                  icon: Icons.analytics,
+                                  color: Colors.green,
+                                  onTap: () => Navigator.pushNamed(
+                                      context, '/analytics'),
+                                ),
+                              ),
+                              SizedBox(
+                                width: (MediaQuery.of(context).size.width / 2) -
+                                    24,
+                                child: _buildActionCard(
+                                  title: "Manage Leave Applications",
+                                  icon: Icons.event_busy,
+                                  color: Colors.amber,
+                                  onTap: _navigateToLeaveManagement,
+                                ),
+                              ),
+                              SizedBox(
+                                width: (MediaQuery.of(context).size.width / 2) -
+                                    24,
+                                child: _buildActionCard(
+                                  title: "Geofence Settings",
+                                  icon: Icons.location_pin,
+                                  color: Colors.orange,
+                                  onTap: () => Navigator.pushNamed(
+                                      context, '/update-geofence'),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          _buildSignOutButton(),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
         ),
         floatingActionButton: FloatingActionButton(
@@ -403,8 +377,8 @@ class _AdminHomePageState extends State<AdminHomePage> {
                     shape: BoxShape.circle,
                   ),
                   constraints: const BoxConstraints(
-                    minWidth: 22,
-                    minHeight: 22,
+                    minWidth: 30,
+                    minHeight: 30,
                   ),
                   child: Text(
                     badge > 9 ? '9+' : '$badge',
