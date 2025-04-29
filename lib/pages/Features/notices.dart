@@ -48,10 +48,12 @@ class _NoticesPageState extends State<NoticesPage> {
     return DefaultTabController(
       length: 2,
       child: PopScope(
-        canPop: false, // Set to false to manually handle popping
+        canPop: false,
         onPopInvoked: (didPop) {
           if (didPop) return;
-          Navigator.of(context).pop();
+
+          // Navigate to employee/admin page on back button press
+          _navigateToAdminEmployeePage();
         },
         child: Scaffold(
           appBar: AppBar(

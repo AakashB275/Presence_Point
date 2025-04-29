@@ -122,21 +122,32 @@ class JoinRequestRepository {
   }
 
   Future<void> approveRequest(String requestId, String userId) async {
-    await supabase.rpc('approve_join_request', params: {
-      'request_id': requestId,
-      'user_id': userId,
-    });
-    final request = await supabase
-        .from('organization_join_requests')
-        .select('org_id')
-        .eq('id', requestId)
-        .single();
+    try {
+      // Get the organization ID first
+      final requestData = await supabase
+          .from('organization_join_requests')
+          .select('org_id')
+          .eq('id', requestId)
+          .single();
 
-    // Increment the user count
-    await supabase
-        .from('organization')
-        .update({'totaluser': supabase.rpc('increment')}).eq(
-            'org_id', request['org_id']);
+      final orgId = requestData['org_id'] as String;
+
+      // Execute all operations without explicit transaction
+      await supabase
+          .from('users')
+          .update({'org_id': orgId}).eq('users_id', userId);
+
+      await supabase
+          .from('organization_join_requests')
+          .update({'status': 'approved'}).eq('id', requestId);
+
+      await supabase
+          .from('organization')
+          .update({'totaluser': supabase.rpc('increment')}).eq('org_id', orgId);
+    } catch (e) {
+      debugPrint('Error approving request: $e');
+      rethrow;
+    }
   }
 
   Future<void> rejectRequest(String requestId) async {
