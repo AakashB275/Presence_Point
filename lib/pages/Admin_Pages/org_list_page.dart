@@ -4,7 +4,7 @@ import 'package:presence_point_2/services/user_state.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-// Employee Model and Repository
+// Employee Model and Repository with Added Check-in Status
 class Employee {
   final String userId;
   final String authUserId;
@@ -13,6 +13,7 @@ class Employee {
   final String name;
   final String role;
   final DateTime createdAt;
+  final bool isCheckedIn; // New field for check-in status
 
   Employee({
     required this.userId,
@@ -22,6 +23,7 @@ class Employee {
     required this.name,
     required this.role,
     required this.createdAt,
+    required this.isCheckedIn, // Added check-in status
   });
 
   factory Employee.fromMap(Map<String, dynamic> map) {
@@ -33,6 +35,7 @@ class Employee {
       name: map['name'] as String,
       role: map['role'] as String,
       createdAt: DateTime.parse(map['created_at'] as String),
+      isCheckedIn: map['is_checked_in'] ?? false, // Default to false if null
     );
   }
 }
@@ -43,11 +46,9 @@ class EmployeeRepository {
   EmployeeRepository(this._supabase);
 
   Future<List<Employee>> getEmployeesByOrg(String orgId) async {
+    // Modified query to join with user_attendance to get check-in status
     final response = await _supabase
-        .from('users')
-        .select()
-        .eq('org_id', orgId)
-        .order('created_at', ascending: false);
+        .rpc('get_employees_with_status', params: {'org_id_param': orgId});
 
     return (response as List).map((e) => Employee.fromMap(e)).toList();
   }
@@ -277,7 +278,27 @@ class _AdminEmployeesTabState extends State<AdminEmployeesTab> {
         leading: CircleAvatar(
           child: Text(employee.name.substring(0, 1)),
         ),
-        title: Text(employee.name),
+        title: Row(
+          children: [
+            Expanded(child: Text(employee.name)),
+            // Check-in status badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: employee.isCheckedIn ? Colors.green : Colors.red,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                employee.isCheckedIn ? 'CHECKED IN' : 'CHECKED OUT',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
