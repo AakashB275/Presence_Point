@@ -140,19 +140,33 @@ class _OrganisationDetailsState extends State<OrganisationDetails> {
           .select('org_id')
           .single();
 
-      // 5. Update user's org_id and role
+      debugPrint("Organization created with ID: ${response['org_id']}");
+
+      // 5. Update user's org_id and role in database
       await supabase.from('users').update({
         'org_id': response['org_id'],
         'role': 'admin',
       }).eq('auth_user_id', currentUser.id);
 
+      debugPrint("User role updated to admin in database");
+
       await _clearLocationPreferences();
 
-      Provider.of<UserState>(context, listen: false).joinOrganization(
+      // FIX: Added the role parameter here to ensure it's set correctly in UserState
+      final userState = Provider.of<UserState>(context, listen: false);
+      await userState.joinOrganization(
         orgId: response['org_id'].toString(),
         orgName: _orgNameController.text.trim(),
         orgCode: orgCode,
+        role: 'admin', // Added this line to explicitly set the role to admin
       );
+
+      // Force a refresh of the user state to ensure role is updated
+      await userState.refreshUserState();
+
+      debugPrint(
+          "After joinOrganization - UserState role: ${userState.userRole}");
+      debugPrint("isAdmin check: ${userState.isAdmin}");
 
       _showSuccessToast("Organization created successfully!");
 

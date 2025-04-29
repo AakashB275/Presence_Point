@@ -134,7 +134,7 @@ class JoinRequestRepository {
 
     // Increment the user count
     await supabase
-        .from('organizations')
+        .from('organization')
         .update({'totaluser': supabase.rpc('increment')}).eq(
             'org_id', request['org_id']);
   }

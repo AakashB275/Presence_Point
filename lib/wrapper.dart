@@ -64,6 +64,10 @@ class _WrapperState extends State<Wrapper> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final userState = Provider.of<UserState>(context);
 
+    // Add this debug print
+    debugPrint(
+        "Wrapper build - isAdmin: ${userState.isAdmin}, role: ${userState.userRole}");
+
     if (userState.isLoading) {
       return _buildLoadingScreen();
     }
@@ -113,12 +117,14 @@ class _RoleGuardedHomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint("Current user role: ${userState.userRole}");
+    debugPrint("Is admin: ${userState.isAdmin}");
+
     // Double-check role before showing page
-    switch (userState.userRole?.toLowerCase()) {
-      case 'admin':
-        return const AdminHomePage();
-      default:
-        return const EmployeeHomePage();
+    if (userState.isAdmin) {
+      return const AdminHomePage();
+    } else {
+      return const EmployeeHomePage();
     }
   }
 }
