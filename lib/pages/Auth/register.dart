@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
+
+
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -55,6 +59,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
     } on AuthException catch (e) {
       await _showMessageDialog("Registration failed: ${e.message}");
+      // In your error handling:
+if (kIsWeb) {
+  // Web-specific error handling
+  await _showMessageDialog("Network error on web. Please check CORS settings.");
+} else {
+  // Mobile error handling
+  await _showMessageDialog("Network error. Please check your internet connection.");
+}
     } catch (e) {
       await _showMessageDialog("An unexpected error occurred");
     } finally {
